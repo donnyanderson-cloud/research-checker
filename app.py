@@ -5,6 +5,15 @@ from PyPDF2 import PdfReader
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="AP Research IRB Auto-Checker", page_icon="📝", layout="wide")
 
+# --- SIDEBAR: LOGO & CONFIG ---
+with st.sidebar:
+    # Option A: Display logo in the sidebar
+    # Replace 'logo.png' with your actual filename
+    st.image("BCS_blue (1).png", width=200) 
+    
+    st.header("⚙️ Configuration")
+    # ... (rest of your sidebar code)
+
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
     st.header("⚙️ Configuration")
