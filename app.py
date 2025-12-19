@@ -133,7 +133,7 @@ if st.button("Run Compliance Check"):
         ]
         
         # --- THE FIX IS HERE: USING GEMINI 2.0 FLASH ---
-        model = genai.GenerativeModel('gemini-2.0-flash', safety_settings=safety_settings)
+        model = genai.GenerativeModel('gemini-flash-latest', safety_settings=safety_settings)
 
         # Build the user message
         user_message = f"{system_prompt}\n\nAnalyze the following student documents:\n"
