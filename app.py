@@ -132,7 +132,7 @@ if st.button("Run Compliance Check"):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
         ]
         
-        model = genai.GenerativeModel('gemini-pro', safety_settings=safety_settings)
+        model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=safety_settings)
 
         # Build the user message
         user_message = f"{system_prompt}\n\nAnalyze the following student documents:\n"
