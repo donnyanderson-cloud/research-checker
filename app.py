@@ -1,23 +1,31 @@
 import streamlit as st
-import openai
+import google.generativeai as genai
 from PyPDF2 import PdfReader
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="AP Research IRB Auto-Checker", page_icon="📝", layout="wide")
 
-# --- SIDEBAR: API KEY & INSTRUCTIONS ---
+# --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
-    st.header("🔑 Setup")
-    api_key = st.text_input("Enter OpenAI API Key", type="password")
+    st.header("⚙️ Configuration")
+    
+    # Check if the key is in Secrets (Hidden Mode)
+    if "GOOGLE_API_KEY" in st.secrets:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        st.success("✅ District License Active")
+    else:
+        # Fallback: Ask user for key if not in secrets
+        api_key = st.text_input("Enter Google API Key", type="password")
+        st.info("Get a free key at aistudio.google.com")
+
     st.markdown("---")
     st.markdown("""
-    **How to use:**
-    1. Enter your API Key above.
-    2. Select the documents you have ready.
-    3. Upload PDFs or paste text.
-    4. Click 'Run Compliance Check'.
+    **Instructions:**
+    1. Select the documents you have ready.
+    2. Upload PDFs or paste text.
+    3. Click 'Run Compliance Check'.
     """)
-    st.warning("🔒 **Privacy:** Documents are processed in memory and are NOT saved.")
+    st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
 
 # --- MAIN TITLE ---
 st.title("🛡️ AP Research IRB Self-Check Tool")
@@ -105,35 +113,40 @@ For each document section provided, output:
 - ACTION: Exactly what the student needs to rewrite.
 """
 
-# --- STEP 4: EXECUTION LOGIC ---
+# --- STEP 4: EXECUTION LOGIC (GEMINI) ---
 if st.button("Run Compliance Check"):
     if not api_key:
-        st.error("⚠️ Please enter an OpenAI API Key in the sidebar to proceed.")
+        st.error("⚠️ Please enter a Google API Key in the sidebar.")
     elif not student_inputs:
         st.warning("Please upload or paste at least one document.")
     else:
-        client = openai.OpenAI(api_key=api_key)
+        # Configure Gemini
+        genai.configure(api_key=api_key)
         
-        # Build the user message based ONLY on what was uploaded
-        user_message = "Analyze the following student documents:\n"
+        # Adjust safety settings so it doesn't block the prompt when checking for "sensitive topics"
+        # We need the AI to READ about sensitive topics to flag them, not block them.
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+        ]
+        
+        model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=safety_settings)
+
+        # Build the user message
+        user_message = f"{system_prompt}\n\nAnalyze the following student documents:\n"
         for doc_type, content in student_inputs.items():
-            user_message += f"\n--- {doc_type} ---\n{content[:15000]}\n" # Limit char count per doc to prevent errors
+            user_message += f"\n--- {doc_type} ---\n{content[:20000]}\n" # Generous char limit for Gemini
 
         with st.spinner("🤖 The AI IRB Chair is reviewing your documents..."):
             try:
-                response = client.chat.completions.create(
-                    model="gpt-4o", 
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
-                    ],
-                    temperature=0.0
-                )
+                response = model.generate_content(user_message)
                 
                 # Display Result
                 st.success("Analysis Complete!")
                 st.markdown("---")
-                st.markdown(response.choices[0].message.content)
+                st.markdown(response.text)
             
             except Exception as e:
                 st.error(f"An error occurred: {e}")
