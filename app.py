@@ -10,13 +10,11 @@ with st.sidebar:
     # Option A: Display logo in the sidebar
     # Replace 'logo.png' with your actual filename
     st.image("BCS_blue (1).png", width=200) 
-    
-    st.header("⚙️ Configuration")
+   
     # ... (rest of your sidebar code)
 
 # --- SIDEBAR: CONFIGURATION ---
 with st.sidebar:
-    st.header("⚙️ Configuration")
     
     # Check if the key is in Secrets (Hidden Mode)
     if "GOOGLE_API_KEY" in st.secrets:
