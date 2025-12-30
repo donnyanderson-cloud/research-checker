@@ -3,52 +3,32 @@ import google.generativeai as genai
 from PyPDF2 import PdfReader
 
 # --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="AP Research IRB Auto-Checker", page_icon="📝", layout="wide")
+st.set_page_config(page_title="BCS Research Review Portal", page_icon="🏫", layout="wide")
 
-# --- SIDEBAR: LOGO & CONFIG ---
+# --- SIDEBAR: GLOBAL SETTINGS ---
 with st.sidebar:
-    # Option A: Display logo in the sidebar
-    # Replace 'logo.png' with your actual filename
-    # st.image("BCS_blue (1).png", width=200) 
+    st.header("⚙️ Configuration")
     
-    # Check if the key is in Secrets (Hidden Mode)
+    # 1. API Key Handling
     if "GOOGLE_API_KEY" in st.secrets:
         api_key = st.secrets["GOOGLE_API_KEY"]
         st.success("✅ District License Active")
     else:
-        # Fallback: Ask user for key if not in secrets
         api_key = st.text_input("Enter Google API Key", type="password")
         st.info("Get a free key at aistudio.google.com")
 
     st.markdown("---")
-    st.markdown("""
-    **Instructions:**
-    1. Select the documents you have ready.
-    2. Upload PDFs or paste text.
-    3. Click 'Run Compliance Check'.
-    """)
+    
+    # 2. THE MODE SELECTOR
+    st.subheader("👥 Select User Mode")
+    user_mode = st.radio(
+        "Who are you?",
+        ["AP Research Student", "External / Higher Ed Researcher"],
+        captions=["For BCS High School Students", "For University/PhD Proposals"]
+    )
+    
+    st.markdown("---")
     st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
-
-# --- MAIN TITLE ---
-st.title("🛡️ AP Research IRB Self-Check Tool")
-st.markdown("""
-This tool screens your research documents against **Blount County Policy 6.4001**, **AP Data Standards**, and **Federal Ethics Rules**.
-""")
-st.caption("⚠️ **Note:** This tool uses Artificial Intelligence to assist in reviewing documents. It may occasionally make errors. The final determination of ethical compliance rests with the IRB Committee, not this software.")
-
-# --- STEP 1: MULTI-SELECT INTERFACE ---
-document_types = [
-    "Research Proposal",
-    "Survey / Interview Questions",
-    "Parent Permission Form",
-    "Principal/District Permission Forms"
-]
-
-selected_docs = st.multiselect(
-    "Select the documents you want to screen:",
-    options=document_types,
-    default=["Research Proposal"]
-)
 
 # --- HELPER FUNCTION: PDF TEXT EXTRACTION ---
 def extract_text(uploaded_file):
@@ -61,118 +41,171 @@ def extract_text(uploaded_file):
     except Exception as e:
         return f"Error reading PDF: {e}"
 
-# --- STEP 2: DYNAMIC UPLOADERS ---
-student_inputs = {}
+# ==========================================
+# MODE A: AP RESEARCH STUDENT
+# ==========================================
+if user_mode == "AP Research Student":
+    st.title("🛡️ AP Research IRB Self-Check Tool")
+    st.markdown("""
+    **For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**.
+    """)
 
-if "Research Proposal" in selected_docs:
-    st.markdown("### 1. Research Proposal")
-    file = st.file_uploader("Upload Proposal (PDF)", type="pdf", key="prop")
-    if file:
-        student_inputs["PROPOSAL"] = extract_text(file)
-
-# --- UPDATED SECTION START ---
-if "Survey / Interview Questions" in selected_docs:
-    st.markdown("### 2. Survey or Interview Script")
+    # --- INPUTS ---
+    document_types = [
+        "Research Proposal",
+        "Survey / Interview Questions",
+        "Parent Permission Form",
+        "Principal/District Permission Forms"
+    ]
+    selected_docs = st.multiselect("Select documents to screen:", document_types, default=["Research Proposal"])
     
-    # 1. Create the Toggle
-    input_method = st.radio(
-        "How would you like to provide your questions?",
-        ["Paste Text", "Upload PDF"],
-        horizontal=True
-    )
+    student_inputs = {}
 
-    # 2. Logic for Paste Text
-    if input_method == "Paste Text":
-        st.info("💡 **For Google Forms:** Open your form, press Ctrl+A (Select All), Copy, and Paste the text below.")
-        survey_text = st.text_area("Paste Survey Questions Here:", height=200, key="survey_text")
-        if survey_text:
-            student_inputs["SURVEY"] = survey_text
+    if "Research Proposal" in selected_docs:
+        st.markdown("### 1. Research Proposal")
+        file = st.file_uploader("Upload Proposal (PDF)", type="pdf", key="ap_prop")
+        if file: student_inputs["PROPOSAL"] = extract_text(file)
 
-    # 3. Logic for Upload PDF
-    elif input_method == "Upload PDF":
-        survey_file = st.file_uploader("Upload Survey PDF", type=["pdf"], key="survey_file")
-        if survey_file:
-            # Re-use the existing helper function to read the PDF
-            extracted_text = extract_text(survey_file)
-            student_inputs["SURVEY"] = extracted_text
-# --- UPDATED SECTION END ---
+    if "Survey / Interview Questions" in selected_docs:
+        st.markdown("### 2. Survey or Interview Script")
+        input_method = st.radio("Input Method:", ["Paste Text", "Upload PDF"], horizontal=True, key="ap_survey_toggle")
+        
+        if input_method == "Paste Text":
+            st.info("💡 Tip: For Google Forms, Ctrl+A -> Copy -> Paste here.")
+            text = st.text_area("Paste text here:", height=200, key="ap_survey_text")
+            if text: student_inputs["SURVEY"] = text
+        else:
+            file = st.file_uploader("Upload Survey PDF", type="pdf", key="ap_survey_file")
+            if file: student_inputs["SURVEY"] = extract_text(file)
 
-if "Parent Permission Form" in selected_docs:
-    st.markdown("### 3. Parent Permission Form")
-    file = st.file_uploader("Upload Parent Form (PDF)", type="pdf", key="parent")
-    if file:
-        student_inputs["PARENT_FORM"] = extract_text(file)
+    if "Parent Permission Form" in selected_docs:
+        st.markdown("### 3. Parent Permission Form")
+        file = st.file_uploader("Upload Parent Form (PDF)", type="pdf", key="ap_parent")
+        if file: student_inputs["PARENT_FORM"] = extract_text(file)
 
-if "Principal/District Permission Forms" in selected_docs:
-    st.markdown("### 4. Administrative Permission Forms")
-    file = st.file_uploader("Upload Principal/District Request (PDF)", type="pdf", key="admin")
-    if file:
-        student_inputs["ADMIN_FORMS"] = extract_text(file)
+    # --- AP SYSTEM PROMPT ---
+    system_prompt = """
+    ROLE: AP Research IRB Compliance Officer for Blount County Schools.
+    
+    CRITERIA (Policy 6.4001 & Federal Rules):
+    1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
+    2. SENSITIVE: Mental health, sexual behavior, illegal acts, income. Requires 'Active Written Consent'.
+    3. MINOR PROTECTION: Participation is VOLUNTARY. No coercion.
+    4. DATA: Must have destruction date and method.
+    
+    OUTPUT:
+    - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
+    - FINDINGS: Bullet points.
+    - ACTION: Specific rewrite instructions.
+    """
 
-# --- STEP 3: THE MASTER SYSTEM PROMPT ---
-system_prompt = """
-ROLE:
-You are the AP Research IRB Compliance Officer for Blount County Schools. Screen student research documents for ethical violations.
+# ==========================================
+# MODE B: EXTERNAL / HIGHER ED RESEARCHER
+# ==========================================
+else:
+    st.title("🏛️ External Research Proposal Review")
+    st.markdown("""
+    **For University & External Researchers:** Pre-screen your proposal against **Blount County Schools Research Procedures**.
+    
+    *Reference: Policy 6.4001 and Administrative Procedure for Research Requests.*
+    """)
 
-CRITERIA & RULES:
+    # --- INPUTS ---
+    st.info("Please upload your documents for review.")
+    
+    external_inputs = {}
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 1. Main Proposal Packet")
+        st.caption("Should include Purpose, Methodology, Benefit to BCS, and Logistics.")
+        prop_file = st.file_uploader("Upload Full Proposal (PDF)", type="pdf", key="ext_prop")
+        if prop_file: external_inputs["FULL_PROPOSAL"] = extract_text(prop_file)
 
-1. FATAL FLAWS (Blount County Policy 6.4001 & PPRA):
-   - PROHIBITED TOPICS: Political affiliations, voting history, religious practices, firearm ownership. (Strict Fail).
-   - SENSITIVE TOPICS: Mental health, sexual behavior, illegal acts, income. (Requires Parent Permission).
-   - RIGHT TO INSPECT: Parent Permission forms MUST state: "Parents have the right to inspect survey materials upon request."
+    with col2:
+        st.markdown("### 2. Instruments & Consents")
+        st.caption("Surveys, Interview Protocols, and Parent/Guardian Consent Forms.")
+        inst_file = st.file_uploader("Upload Instruments (PDF)", type="pdf", key="ext_inst")
+        if inst_file: external_inputs["INSTRUMENTS"] = extract_text(inst_file)
 
-2. MINOR PROTECTION (OHRP / Belmont):
-   - TERMINOLOGY: Minors provide 'Assent', Parents provide 'Permission'. 
-   - COERCION: Participation must be VOLUNTARY. No penalty for saying no.
-   - SILENCE != ASSENT: "If you don't say no, you are in" is invalid.
-   - SAFETY NET: If the topic involves stress/emotions, there MUST be a "Distress Protocol" (e.g., referral to guidance counselor).
+    # --- EXTERNAL SYSTEM PROMPT ---
+    # Derived from the "BCS Research Studies Procedures" document provided
+    system_prompt = """
+    ROLE: Research Committee Reviewer for Blount County Schools (BCS).
+    
+    TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
 
-3. DATA SECURITY & INTEGRITY (AP Standards):
-   - DESTRUCTION: Must state a specific DATE (e.g., May 2025) and METHOD (shred/delete).
-   - ANONYMITY: If 'Anonymous', NO names/emails can be collected.
-   - CONFLICT OF INTEREST: Flag if the student is surveying their own close friends, teammates, or teachers without a bias mitigation plan.
+    CRITICAL COMPLIANCE CHECKS:
 
-OUTPUT FORMAT:
-For each document section provided, output:
-- STATUS: [✅ PASS] or [❌ REVISION NEEDED]
-- FINDINGS: Bullet points of specific issues found.
-- ACTION: Exactly what the student needs to rewrite.
-"""
+    1. BENEFIT TO DISTRICT [cite: 5, 30]
+       - The proposal MUST explicitly state a "projected value of the study to Blount County."
+       - If the study is purely for the researcher's degree with no clear feedback/value to BCS, flag as "Low Priority/Educational Value".
 
-# --- STEP 4: EXECUTION LOGIC (GEMINI) ---
+    2. BURDEN & INSTRUCTIONAL TIME [cite: 7, 10, 26]
+       - Does the study interfere with instructional time?
+       - Is the time commitment (minutes per participant) clearly defined?
+       - Flag "Convenience Sampling" if they just want "any students available".
+
+    3. PROHIBITED TOPICS (Strict Ban)
+       - Political affiliation / Voting history
+       - Religious practices
+       - Firearm ownership
+       - If ANY of these are asked, result is IMMEDIATE REJECTION.
+
+    4. SENSITIVE TOPICS (Requires Explicit Consent)
+       - Mental health, sexual behavior, illegal acts, family appraisals, income.
+       - If present, verify that "Written, Informed, Voluntary Signed Consent" is required from parents.
+
+    5. MANDATORY STATEMENTS
+       - Must include a statement agreeing to abide by "Blount County School Board Policy 6.4001".
+       - All instruments must explicitly state that responses are "Voluntary"[cite: 32].
+       - Must confirm that parents have the "Right to inspect" materials[cite: 29].
+       - Anonymity: Must guarantee students/schools will not be identified in publications[cite: 27].
+
+    OUTPUT FORMAT:
+    
+    ### 🚦 Executive Summary
+    **Status:** [RECOMMEND FOR REVIEW] or [REVISION REQUIRED]
+    
+    ### 🔍 Compliance Checklist
+    1. **Benefit to BCS:** [Yes/No/Unclear] - *Quote the claimed benefit.*
+    2. **Prohibited Topics:** [Detected/None]
+    3. **Policy 6.4001 Agreement:** [Present/Missing] - *Must explicitly mention the policy number.*
+    4. **Voluntary Statement:** [Present/Missing] - *Check instruments.*
+    
+    ### 📝 Detailed Findings & Action Items
+    * [List specific missing elements or red flags based on the citations above]
+    """
+    
+    # Point the processing variable to the external inputs
+    student_inputs = external_inputs
+
+# ==========================================
+# EXECUTION LOGIC (SHARED)
+# ==========================================
 if st.button("Run Compliance Check"):
     if not api_key:
         st.error("⚠️ Please enter a Google API Key in the sidebar.")
     elif not student_inputs:
-        st.warning("Please upload or paste at least one document.")
+        st.warning("Please upload at least one document.")
     else:
         # Configure Gemini
         genai.configure(api_key=api_key)
         
-        # Safety Settings
-        safety_settings = [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-        ]
-        
-        # Using Gemini Flash for speed
-        model = genai.GenerativeModel('gemini-flash-latest', safety_settings=safety_settings)
+        # Using Flash for speed/cost
+        model = genai.GenerativeModel('gemini-2.0-flash-exp') # Updated model name
 
-        # Build the user message
-        user_message = f"{system_prompt}\n\nAnalyze the following student documents:\n"
+        # Build message
+        user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
         for doc_type, content in student_inputs.items():
-            user_message += f"\n--- {doc_type} ---\n{content[:30000]}\n" 
+            user_message += f"\n--- {doc_type} ---\n{content[:40000]}\n" 
 
-        with st.spinner("🤖 The AI IRB Chair is reviewing your documents..."):
+        with st.spinner("🤖 Analyzing against District Policy..."):
             try:
                 response = model.generate_content(user_message)
-                
-                # Display Result
                 st.success("Analysis Complete!")
                 st.markdown("---")
                 st.markdown(response.text)
-            
             except Exception as e:
                 st.error(f"An error occurred: {e}")
