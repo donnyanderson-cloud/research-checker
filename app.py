@@ -9,12 +9,7 @@ st.set_page_config(page_title="AP Research IRB Auto-Checker", page_icon="📝", 
 with st.sidebar:
     # Option A: Display logo in the sidebar
     # Replace 'logo.png' with your actual filename
-    st.image("BCS_blue (1).png", width=200) 
-   
-    # ... (rest of your sidebar code)
-
-# --- SIDEBAR: CONFIGURATION ---
-with st.sidebar:
+    # st.image("BCS_blue (1).png", width=200) 
     
     # Check if the key is in Secrets (Hidden Mode)
     if "GOOGLE_API_KEY" in st.secrets:
@@ -40,8 +35,6 @@ st.markdown("""
 This tool screens your research documents against **Blount County Policy 6.4001**, **AP Data Standards**, and **Federal Ethics Rules**.
 """)
 st.caption("⚠️ **Note:** This tool uses Artificial Intelligence to assist in reviewing documents. It may occasionally make errors. The final determination of ethical compliance rests with the IRB Committee, not this software.")
-
-
 
 # --- STEP 1: MULTI-SELECT INTERFACE ---
 document_types = [
@@ -77,12 +70,32 @@ if "Research Proposal" in selected_docs:
     if file:
         student_inputs["PROPOSAL"] = extract_text(file)
 
+# --- UPDATED SECTION START ---
 if "Survey / Interview Questions" in selected_docs:
     st.markdown("### 2. Survey or Interview Script")
-    st.info("💡 **For Google Forms:** Open your form, press Ctrl+A (Select All), Copy, and Paste the text below.")
-    survey_text = st.text_area("Paste Survey Questions Here:", height=200, key="survey")
-    if survey_text:
-        student_inputs["SURVEY"] = survey_text
+    
+    # 1. Create the Toggle
+    input_method = st.radio(
+        "How would you like to provide your questions?",
+        ["Paste Text", "Upload PDF"],
+        horizontal=True
+    )
+
+    # 2. Logic for Paste Text
+    if input_method == "Paste Text":
+        st.info("💡 **For Google Forms:** Open your form, press Ctrl+A (Select All), Copy, and Paste the text below.")
+        survey_text = st.text_area("Paste Survey Questions Here:", height=200, key="survey_text")
+        if survey_text:
+            student_inputs["SURVEY"] = survey_text
+
+    # 3. Logic for Upload PDF
+    elif input_method == "Upload PDF":
+        survey_file = st.file_uploader("Upload Survey PDF", type=["pdf"], key="survey_file")
+        if survey_file:
+            # Re-use the existing helper function to read the PDF
+            extracted_text = extract_text(survey_file)
+            student_inputs["SURVEY"] = extracted_text
+# --- UPDATED SECTION END ---
 
 if "Parent Permission Form" in selected_docs:
     st.markdown("### 3. Parent Permission Form")
@@ -144,7 +157,7 @@ if st.button("Run Compliance Check"):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
         ]
         
-        # --- THE FIX IS HERE: USING GEMINI 2.0 FLASH ---
+        # Using Gemini Flash for speed
         model = genai.GenerativeModel('gemini-flash-latest', safety_settings=safety_settings)
 
         # Build the user message
