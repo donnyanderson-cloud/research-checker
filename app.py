@@ -103,7 +103,7 @@ if user_mode == "AP Research Student":
 # MODE B: EXTERNAL / HIGHER ED RESEARCHER
 # ==========================================
 else:
-    st.title("🏛️ External Research Proposal Review")
+    st.title("🏛️ External Research Proposal Review and Self-Check Tool")
     st.markdown("""
     **For University & External Researchers:** Pre-screen your proposal against **Blount County Schools Research Procedures**.
     
