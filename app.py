@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from PyPDF2 import PdfReader
 import importlib.metadata
+import random
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="BCS Research Review Portal", page_icon="🏫", layout="wide")
@@ -47,17 +48,36 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 3. API KEY HANDLING
-    if "GOOGLE_API_KEY" in st.secrets:
-        district_key = st.secrets["GOOGLE_API_KEY"]
+    # 3. INTELLIGENT KEY LOAD BALANCER
+    api_key = None
+    
+    # Check for the list of keys (Primary Method for Classrooms)
+    if "DISTRICT_KEYS" in st.secrets:
+        key_pool = st.secrets["DISTRICT_KEYS"]
+        # Randomly select one key from the pool
+        district_key = random.choice(key_pool)
         api_key = district_key
         
         if user_mode == "AP Research Student":
-            st.success("✅ District License Active")
+            st.success(f"✅ District License Active")
             with st.expander("🚀 Performance Boost (Use Your Own Key)"):
                 st.info("Classroom blocked? Use your own free key to bypass the wait.")
                 st.link_button("1. Get Free API Key ↗️", "https://aistudio.google.com/app/apikey")
-                st.markdown("**2. Paste it below:**")
+                user_key = st.text_input("Paste your personal key:", type="password")
+                if user_key:
+                    api_key = user_key
+                    st.success("✅ Using Personal Key")
+        else:
+            st.success("✅ District License Active")
+
+    # Fallback for Single Key (Legacy Method)
+    elif "GOOGLE_API_KEY" in st.secrets:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        if user_mode == "AP Research Student":
+            st.success("✅ District License Active")
+            with st.expander("🚀 Performance Boost (Use Your Own Key)"):
+                st.info("Classroom blocked? Use your own free key.")
+                st.link_button("1. Get Free API Key ↗️", "https://aistudio.google.com/app/apikey")
                 user_key = st.text_input("Paste your personal key:", type="password")
                 if user_key:
                     api_key = user_key
