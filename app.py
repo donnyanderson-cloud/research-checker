@@ -218,7 +218,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (SHARED)
+# EXECUTION LOGIC (WITH PROGRESS UPDATES)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not api_key:
@@ -226,31 +226,40 @@ if st.button("Run Compliance Check"):
     elif not student_inputs:
         st.warning("Please upload at least one document.")
     else:
-        # Configure Gemini
+        # 1. SETUP
+        status = st.empty() # Create a placeholder for status updates
+        status.info("🔌 Connecting to AI Services...")
         genai.configure(api_key=api_key)
         
-        # --- MODEL CONFIGURATION ---
-        # SWITCHED TO GEMINI 1.5 FLASH (Standard Stable Model)
-        # This is the "Workhorse" model with the highest free limits (15 RPM)
-        try:
-            model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=[
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-            ])
+        # 2. MODEL CONFIG
+        model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=[
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+        ])
 
-            # Build message
-            user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
-            for doc_type, content in student_inputs.items():
-                user_message += f"\n--- {doc_type} ---\n{content[:40000]}\n" 
+        # 3. PREPARING TEXT
+        status.info("📄 Reading your PDF files...")
+        user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
+        
+        # Debug: Check text length
+        total_chars = 0
+        for doc_type, content in student_inputs.items():
+            clean_content = str(content)[:40000] # Force string conversion just in case
+            total_chars += len(clean_content)
+            user_message += f"\n--- {doc_type} ---\n{clean_content}\n" 
+        
+        status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
-            with st.spinner("🤖 Analyzing against District Policy..."):
+        # 4. SENDING REQUEST
+        with st.spinner("🤖 Analyzing against District Policy..."):
+            try:
                 response = model.generate_content(user_message)
-                st.success("Analysis Complete!")
+                status.success("✅ Analysis Complete!")
                 st.markdown("---")
                 st.markdown(response.text)
                 
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
-            st.info("If you see a '404' error here, please verify that your requirements.txt file says 'google-generativeai>=0.8.3'")
+            except Exception as e:
+                status.error("❌ Error during analysis")
+                st.error(f"Error details: {e}")
