@@ -104,8 +104,16 @@ if user_mode == "AP Research Student":
 # ==========================================
 else:
     st.title("🏛️ External Research Proposal Review")
+    st.info("### 📋 Criteria for External Proposals")
     st.markdown("""
-    **For University & External Researchers:** Pre-screen your proposal against **Blount County Schools Research Procedures**.
+    All research requests involving Blount County Schools (BCS) students, staff, or data are critiqued against the following district standards:
+
+    * **Projected Value:** The proposal must clearly articulate a "projected value of the study to Blount County". Studies deemed to have little educational research value or those using the district solely for "convenience sampling" will be denied.
+    * **Instructional Impact:** Research must not interfere with instructional time. Proposals that place an "undue burden" on district personnel or resources will not be approved.
+    * **Strictly Prohibited Data:** The collection of student data regarding political affiliation, voting history, religious practices, or firearm ownership is strictly prohibited.
+    * **Sensitive Topics & Consent:** Topics involving mental health, sexual behavior, illegal acts, income, or family relationships require **written, informed, and voluntarily signed consent** from parents.
+    * **Mandatory Policy Agreement:** The proposal must include a written statement indicating that the researcher has read, understands, and agrees to abide by **Blount County School Board Policy 6.4001**.
+    * **Voluntary Participation:** All surveys and instruments must explicitly state that responses are voluntary.
     """)
     st.info("Please upload your documents below for review.")
 
@@ -180,6 +188,7 @@ else:
 # ==========================================
 # EXECUTION LOGIC (SHARED)
 # ==========================================
+# Note: This logic is NOT indented so it runs for both modes
 if st.button("Run Compliance Check"):
     if not api_key:
         st.error("⚠️ Please enter a Google API Key in the sidebar.")
@@ -189,8 +198,9 @@ if st.button("Run Compliance Check"):
         # Configure Gemini
         genai.configure(api_key=api_key)
         
-        # --- FIXED: USING STABLE MODEL TO AVOID QUOTA ERRORS ---
-        model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=[
+        # --- MODEL CONFIGURATION ---
+        # Using 'gemini-1.5-flash-latest' to ensure availability
+        model = genai.GenerativeModel('gemini-1.5-flash-latest', safety_settings=[
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
             {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
