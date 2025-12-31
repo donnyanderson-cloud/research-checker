@@ -1,4 +1,4 @@
-model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=safety_settings)
+import streamlit as st
 import google.generativeai as genai
 from PyPDF2 import PdfReader
 
@@ -103,16 +103,13 @@ if user_mode == "AP Research Student":
 # MODE B: EXTERNAL / HIGHER ED RESEARCHER
 # ==========================================
 else:
-    st.title("🏛️ External Research Proposal Review and Self-Check Tool")
+    st.title("🏛️ External Research Proposal Review")
     st.markdown("""
     **For University & External Researchers:** Pre-screen your proposal against **Blount County Schools Research Procedures**.
-    
-    *Reference: Policy 6.4001 and Administrative Procedure for Research Requests.*
     """)
+    st.info("Please upload your documents below for review.")
 
     # --- INPUTS ---
-    st.info("Please upload your documents for review.")
-    
     external_inputs = {}
     
     col1, col2 = st.columns(2)
@@ -127,85 +124,4 @@ else:
         st.markdown("### 2. Instruments & Consents")
         st.caption("Surveys, Interview Protocols, and Parent/Guardian Consent Forms.")
         inst_file = st.file_uploader("Upload Instruments (PDF)", type="pdf", key="ext_inst")
-        if inst_file: external_inputs["INSTRUMENTS"] = extract_text(inst_file)
-
-    # --- EXTERNAL SYSTEM PROMPT ---
-    # Derived from the "BCS Research Studies Procedures" document provided
-    system_prompt = """
-    ROLE: Research Committee Reviewer for Blount County Schools (BCS).
-    
-    TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
-
-    CRITICAL COMPLIANCE CHECKS:
-
-    1. BENEFIT TO DISTRICT [cite: 5, 30]
-       - The proposal MUST explicitly state a "projected value of the study to Blount County."
-       - If the study is purely for the researcher's degree with no clear feedback/value to BCS, flag as "Low Priority/Educational Value".
-
-    2. BURDEN & INSTRUCTIONAL TIME [cite: 7, 10, 26]
-       - Does the study interfere with instructional time?
-       - Is the time commitment (minutes per participant) clearly defined?
-       - Flag "Convenience Sampling" if they just want "any students available".
-
-    3. PROHIBITED TOPICS (Strict Ban)
-       - Political affiliation / Voting history
-       - Religious practices
-       - Firearm ownership
-       - If ANY of these are asked, result is IMMEDIATE REJECTION.
-
-    4. SENSITIVE TOPICS (Requires Explicit Consent)
-       - Mental health, sexual behavior, illegal acts, family appraisals, income.
-       - If present, verify that "Written, Informed, Voluntary Signed Consent" is required from parents.
-
-    5. MANDATORY STATEMENTS
-       - Must include a statement agreeing to abide by "Blount County School Board Policy 6.4001".
-       - All instruments must explicitly state that responses are "Voluntary"[cite: 32].
-       - Must confirm that parents have the "Right to inspect" materials[cite: 29].
-       - Anonymity: Must guarantee students/schools will not be identified in publications[cite: 27].
-
-    OUTPUT FORMAT:
-    
-    ### 🚦 Executive Summary
-    **Status:** [RECOMMEND FOR REVIEW] or [REVISION REQUIRED]
-    
-    ### 🔍 Compliance Checklist
-    1. **Benefit to BCS:** [Yes/No/Unclear] - *Quote the claimed benefit.*
-    2. **Prohibited Topics:** [Detected/None]
-    3. **Policy 6.4001 Agreement:** [Present/Missing] - *Must explicitly mention the policy number.*
-    4. **Voluntary Statement:** [Present/Missing] - *Check instruments.*
-    
-    ### 📝 Detailed Findings & Action Items
-    * [List specific missing elements or red flags based on the citations above]
-    """
-    
-    # Point the processing variable to the external inputs
-    student_inputs = external_inputs
-
-# ==========================================
-# EXECUTION LOGIC (SHARED)
-# ==========================================
-if st.button("Run Compliance Check"):
-    if not api_key:
-        st.error("⚠️ Please enter a Google API Key in the sidebar.")
-    elif not student_inputs:
-        st.warning("Please upload at least one document.")
-    else:
-        # Configure Gemini
-        genai.configure(api_key=api_key)
-        
-        # Using Flash for speed/cost
-        model = genai.GenerativeModel('gemini-2.0-flash-exp') # Updated model name
-
-        # Build message
-        user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
-        for doc_type, content in student_inputs.items():
-            user_message += f"\n--- {doc_type} ---\n{content[:40000]}\n" 
-
-        with st.spinner("🤖 Analyzing against District Policy..."):
-            try:
-                response = model.generate_content(user_message)
-                st.success("Analysis Complete!")
-                st.markdown("---")
-                st.markdown(response.text)
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+        if inst_file: external_inputs["INSTRUMENTS"] = extract
