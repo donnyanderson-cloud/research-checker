@@ -172,7 +172,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (WITH PROGRESS UPDATES & ZERO TEMP)
+# EXECUTION LOGIC (WITH PROGRESS UPDATES, ZERO TEMP, & NEXT STEPS)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not api_key:
@@ -185,8 +185,7 @@ if st.button("Run Compliance Check"):
         status.info("🔌 Connecting to AI Services...")
         genai.configure(api_key=api_key)
         
-        # 2. MODEL CONFIG
-        # 'temperature': 0.0 forces the model to be as consistent/robotic as possible.
+        # 2. MODEL CONFIG (Deterministic / Zero Creativity)
         generation_config = {
             "temperature": 0.0,
             "top_p": 1,
@@ -220,11 +219,41 @@ if st.button("Run Compliance Check"):
         # 4. SENDING REQUEST
         with st.spinner("🤖 Analyzing against District Policy..."):
             try:
-                # We pass the prompt here. The config is already locked in the model above.
                 response = model.generate_content(user_message)
                 status.success("✅ Analysis Complete!")
                 st.markdown("---")
+                
+                # DISPLAY THE AI ANALYSIS
                 st.markdown(response.text)
+                
+                # --- NEW SECTION: CONDITIONAL NEXT STEPS ---
+                st.markdown("---")
+                st.subheader("📬 Next Steps")
+                
+                if user_mode == "AP Research Student":
+                    st.info("""
+                    **If all of your artifacts have passed:**
+                    1. Confirm your status to your teacher for district submission via email: **donny.anderson@blountk12.org**
+                    2. Make sure that all files that were AI screened are shared with Mr. Anderson.
+                    
+                    **If your Status is ❌ REVISION NEEDED:**
+                    * Review the "Action Items" above, edit your documents, and re-run this check.
+                    """)
+                    
+                else: # External Researcher
+                    st.success("""
+                    **✅ If all of your artifacts have passed:**
+                    
+                    Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
+                    
+                    *⚠️ Make sure that all file sharing options have been addressed prior to your email submission (ensure links are public/viewable).*
+                    """)
+                    
+                    st.warning("""
+                    **❌ If the Analysis says "REVISION REQUIRED":**
+                    Please correct the items listed in the checklist above before emailing the district. 
+                    Non-compliant proposals will be automatically returned.
+                    """)
                 
             except Exception as e:
                 status.error("❌ Analysis Failed")
