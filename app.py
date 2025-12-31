@@ -1,6 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 from PyPDF2 import PdfReader
+import importlib.metadata
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="BCS Research Review Portal", page_icon="🏫", layout="wide")
@@ -43,7 +44,6 @@ with st.sidebar:
     st.markdown("---")
     
     # 2. System Diagnostics
-    import importlib.metadata
     try:
         lib_ver = importlib.metadata.version("google-generativeai")
     except:
@@ -230,24 +230,27 @@ if st.button("Run Compliance Check"):
         genai.configure(api_key=api_key)
         
         # --- MODEL CONFIGURATION ---
-        # Using 'gemini-2.0-flash' as confirmed by your diagnostic list
-        model = genai.GenerativeModel('gemini-2.0-flash', safety_settings=[
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-        ])
+        # SWITCHED TO GEMINI 1.5 FLASH (Standard Stable Model)
+        # This is the "Workhorse" model with the highest free limits (15 RPM)
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+            ])
 
-        # Build message
-        user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
-        for doc_type, content in student_inputs.items():
-            user_message += f"\n--- {doc_type} ---\n{content[:40000]}\n" 
+            # Build message
+            user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
+            for doc_type, content in student_inputs.items():
+                user_message += f"\n--- {doc_type} ---\n{content[:40000]}\n" 
 
-        with st.spinner("🤖 Analyzing against District Policy..."):
-            try:
+            with st.spinner("🤖 Analyzing against District Policy..."):
                 response = model.generate_content(user_message)
                 st.success("Analysis Complete!")
                 st.markdown("---")
                 st.markdown(response.text)
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+                
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+            st.info("If you see a '404' error here, please verify that your requirements.txt file says 'google-generativeai>=0.8.3'")
