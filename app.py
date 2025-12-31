@@ -172,7 +172,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (WITH PROGRESS UPDATES)
+# EXECUTION LOGIC (WITH PROGRESS UPDATES & ZERO TEMP)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not api_key:
@@ -186,13 +186,24 @@ if st.button("Run Compliance Check"):
         genai.configure(api_key=api_key)
         
         # 2. MODEL CONFIG
-        # Using 'gemini-flash-latest' to match your available models list
-        model = genai.GenerativeModel('gemini-flash-latest', safety_settings=[
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-        ])
+        # 'temperature': 0.0 forces the model to be as consistent/robotic as possible.
+        generation_config = {
+            "temperature": 0.0,
+            "top_p": 1,
+            "top_k": 1,
+            "max_output_tokens": 4096,
+        }
+
+        model = genai.GenerativeModel(
+            model_name='gemini-flash-latest', 
+            generation_config=generation_config,
+            safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+            ]
+        )
 
         # 3. PREPARING TEXT
         status.info("📄 Reading your PDF files...")
@@ -209,6 +220,7 @@ if st.button("Run Compliance Check"):
         # 4. SENDING REQUEST
         with st.spinner("🤖 Analyzing against District Policy..."):
             try:
+                # We pass the prompt here. The config is already locked in the model above.
                 response = model.generate_content(user_message)
                 status.success("✅ Analysis Complete!")
                 st.markdown("---")
