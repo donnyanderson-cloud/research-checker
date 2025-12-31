@@ -10,16 +10,41 @@ with st.sidebar:
     st.header("⚙️ Configuration")
     
     # 1. API Key Handling
+    # Check if a global district key exists
     if "GOOGLE_API_KEY" in st.secrets:
-        api_key = st.secrets["GOOGLE_API_KEY"]
         st.success("✅ District License Active")
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        
+        # Optional: Allow override if the district key hits limits
+        with st.expander("Override / Use My Own Key"):
+            user_key = st.text_input("Paste your personal key:", type="password")
+            if user_key:
+                api_key = user_key
+                st.success("Using Personal Key")
+
     else:
+        # If no district key, force them to enter one
+        st.markdown("### 🔑 Need an API Key?")
+        st.info("To avoid system crashes during class, please generate your own free key.")
+        
+        # The Link Button
+        st.link_button("1. Get Free API Key ↗️", "https://aistudio.google.com/app/apikey")
+        
+        st.markdown("**2. Paste it below:**")
         api_key = st.text_input("Enter Google API Key", type="password")
-        st.info("Get a free key at aistudio.google.com")
 
     st.markdown("---")
     
-    # 2. THE MODE SELECTOR
+    # 2. System Diagnostics
+    import importlib.metadata
+    try:
+        lib_ver = importlib.metadata.version("google-generativeai")
+    except:
+        lib_ver = "Unknown"
+    st.caption(f"⚙️ System Version: {lib_ver}")
+    st.markdown("---")
+    
+    # 3. THE MODE SELECTOR
     st.subheader("👥 Select User Mode")
     user_mode = st.radio(
         "Who are you?",
