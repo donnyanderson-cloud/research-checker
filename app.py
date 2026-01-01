@@ -54,7 +54,6 @@ with st.sidebar:
     # Check for the list of keys (Primary Method for Classrooms)
     if "DISTRICT_KEYS" in st.secrets:
         key_pool = st.secrets["DISTRICT_KEYS"]
-        # Randomly select one key from the pool
         district_key = random.choice(key_pool)
         api_key = district_key
         
@@ -159,6 +158,7 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
+    # UPDATED PROMPT: Uniform output status
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     CRITERIA (Policy 6.4001 & Federal Rules):
@@ -166,7 +166,11 @@ if user_mode == "AP Research Student":
     2. SENSITIVE: Mental health, sexual behavior, illegal acts, income. Requires 'Active Written Consent'.
     3. MINOR PROTECTION: Participation is VOLUNTARY. No coercion.
     4. DATA: Must have destruction date and method.
-    OUTPUT: STATUS (PASS/REVISION), FINDINGS, ACTION.
+    
+    OUTPUT FORMAT:
+    - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
+    - FINDINGS: Bullet points.
+    - ACTION: Specific rewrite instructions.
     """
 
 # ==========================================
@@ -202,6 +206,7 @@ else:
                 combined_text += extract_text(f) + "\n\n"
             external_inputs["INSTRUMENTS"] = combined_text
 
+    # UPDATED PROMPT: Uniform output status with AP
     system_prompt = """
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
@@ -215,7 +220,7 @@ else:
 
     OUTPUT FORMAT:
     ### 🚦 Executive Summary
-    **Status:** [RECOMMEND FOR REVIEW] or [REVISION REQUIRED]
+    **Status:** [✅ RECOMMEND FOR REVIEW] or [❌ REVISION NEEDED]
     ### 🔍 Compliance Checklist
     ### 📝 Detailed Findings & Action Items
     """
@@ -246,7 +251,6 @@ if st.button("Run Compliance Check"):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
         ]
 
-        # Consolidated Model Definition to prevent Syntax Errors
         model = genai.GenerativeModel(model_name='gemini-flash-latest', generation_config=generation_config, safety_settings=safety_settings)
 
         # 3. PREPARING TEXT
@@ -271,31 +275,39 @@ if st.button("Run Compliance Check"):
                 # DISPLAY THE AI ANALYSIS
                 st.markdown(response.text)
                 
-                # --- CONDITIONAL NEXT STEPS ---
+                # --- CONDITIONAL NEXT STEPS (COLOR MATCHED) ---
                 st.markdown("---")
                 st.subheader("📬 Next Steps")
                 
                 if user_mode == "AP Research Student":
-                    st.info("""
-                    **If all of your artifacts have passed:**
+                    # GREEN BOX FOR PASS
+                    st.success("""
+                    **✅ If all of your artifacts have passed:**
                     1. Confirm your status to your teacher for district submission via email: **donny.anderson@blountk12.org**
                     2. Make sure that all files that were AI screened are shared with Mr. Anderson.
+                    """)
                     
-                    **If your Status is ❌ REVISION NEEDED:**
-                    * Review the "Action Items" above, edit your documents, and re-run this check.
+                    # RED BOX FOR FAIL
+                    st.error("""
+                    **❌ If your Status is REVISION NEEDED:**
+                    * Review the "Action Items" above.
+                    * Edit your documents.
+                    * **Re-run this check** until you get a PASS status.
                     """)
                     
                 else: # External Researcher
+                    # GREEN BOX FOR PASS
                     st.success("""
                     **✅ If all of your artifacts have passed:**
                     Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
-                    *⚠️ Make sure that all file sharing options have been addressed prior to your email submission (ensure links are public/viewable).*
+                    *⚠️ Make sure that all file sharing options have been addressed prior to your email submission.*
                     """)
                     
-                    st.warning("""
-                    **❌ If the Analysis says "REVISION REQUIRED":**
+                    # RED BOX FOR FAIL
+                    st.error("""
+                    **❌ If the Analysis says "REVISION NEEDED":**
                     Please correct the items listed in the checklist above before emailing the district. 
-                    Non-compliant proposals will be automatically returned.
+                    **Non-compliant proposals will be automatically returned.**
                     """)
                 
             except Exception as e:
