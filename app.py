@@ -158,9 +158,14 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # UPDATED PROMPT: Uniform output status
+    # --- UPDATED PROMPT: ACADEMIC INTEGRITY SAFEGUARDS ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
+    
+    INSTRUCTION: Review the student proposal for compliance with Policy 6.4001. 
+    **IMPORTANT:** Do NOT rewrite the text for the student. Do NOT provide examples of 'correct' text. 
+    Only identify the missing criteria or policy violation so the student must write the correction themselves.
+
     CRITERIA (Policy 6.4001 & Federal Rules):
     1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
     2. SENSITIVE: Mental health, sexual behavior, illegal acts, income. Requires 'Active Written Consent'.
@@ -169,8 +174,8 @@ if user_mode == "AP Research Student":
     
     OUTPUT FORMAT:
     - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
-    - FINDINGS: Bullet points.
-    - ACTION: Specific rewrite instructions.
+    - FINDINGS: Bullet points of observed status.
+    - ACTION: State the policy requirement that is missing (e.g., "Must explicitly state data destruction method").
     """
 
 # ==========================================
@@ -206,7 +211,6 @@ else:
                 combined_text += extract_text(f) + "\n\n"
             external_inputs["INSTRUMENTS"] = combined_text
 
-    # UPDATED PROMPT: Uniform output status with AP
     system_prompt = """
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
@@ -291,7 +295,7 @@ if st.button("Run Compliance Check"):
                     st.error("""
                     **❌ If your Status is REVISION NEEDED:**
                     * Review the "Action Items" above.
-                    * Edit your documents.
+                    * Edit your documents to address the missing policy requirements.
                     * **Re-run this check** until you get a PASS status.
                     """)
                     
