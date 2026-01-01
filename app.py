@@ -21,7 +21,10 @@ with st.sidebar:
     
     st.markdown("---")
 
-    # 2. FILE NAMING GUIDE
+    # 2. PRIVACY NOTICE (Moved Up)
+    st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
+
+    # 3. FILE NAMING GUIDE
     with st.expander("📂 File Naming Standards"):
         if user_mode == "AP Research Student":
             st.markdown("""
@@ -48,7 +51,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 3. INTELLIGENT KEY LOAD BALANCER
+    # 4. INTELLIGENT KEY LOAD BALANCER
     api_key = None
     
     # Check for the list of keys (Primary Method for Classrooms)
@@ -92,16 +95,13 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 4. DIAGNOSTICS
+    # 5. DIAGNOSTICS
     if user_mode == "AP Research Student":
         try:
             lib_ver = importlib.metadata.version("google-generativeai")
         except:
             lib_ver = "Unknown"
         st.caption(f"⚙️ System Version: {lib_ver}")
-        st.markdown("---")
-    
-    st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
 
 # --- HELPER FUNCTION: PDF TEXT EXTRACTION ---
 def extract_text(uploaded_file):
