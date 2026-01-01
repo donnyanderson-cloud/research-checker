@@ -46,7 +46,7 @@ with st.sidebar:
             * `Lastname_Institution_Instruments_2025.pdf`
             """)
     
-          st.markdown("---")
+    st.markdown("---")
     
     # 3. INTELLIGENT KEY LOAD BALANCER
     api_key = None
