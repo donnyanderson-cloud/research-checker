@@ -5,7 +5,12 @@ import importlib.metadata
 import random
 
 # --- PAGE CONFIGURATION ---
-st.set_page_config(page_title="BCS Research Review Portal", page_icon="🏫", layout="wide")
+st.set_page_config(
+    page_title="BCS Research Review Portal", 
+    page_icon="🏫", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # --- SIDEBAR: GLOBAL SETTINGS ---
 with st.sidebar:
@@ -21,7 +26,7 @@ with st.sidebar:
     
     st.markdown("---")
 
-    # 2. PRIVACY NOTICE (Moved Up)
+    # 2. PRIVACY NOTICE
     st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
 
     # 3. FILE NAMING GUIDE
@@ -158,13 +163,15 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- UPDATED PROMPT: ACADEMIC INTEGRITY SAFEGUARDS ---
+    # --- UPDATED PROMPT: STRICT 'NO EXAMPLES' POLICY ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     
     INSTRUCTION: Review the student proposal for compliance with Policy 6.4001. 
-    **IMPORTANT:** Do NOT rewrite the text for the student. Do NOT provide examples of 'correct' text. 
-    Only identify the missing criteria or policy violation so the student must write the correction themselves.
+    
+    **STRICT CONSTRAINT:** 1. Do NOT rewrite the student's text.
+    2. Do NOT provide examples of 'correct' verbiage or phrases to copy.
+    3. You must be DESCRIPTIVE and DIRECTIVE only. Identify the missing component and reference the policy requirement, but the student must draft the correction themselves.
 
     CRITERIA (Policy 6.4001 & Federal Rules):
     1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
@@ -175,7 +182,7 @@ if user_mode == "AP Research Student":
     OUTPUT FORMAT:
     - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
     - FINDINGS: Bullet points of observed status.
-    - ACTION: State the policy requirement that is missing (e.g., "Must explicitly state data destruction method").
+    - ACTION: Describe the specific gap in compliance (e.g., "The proposal fails to define a method for data destruction as required by Policy 6.4001."). Do not offer a sample sentence.
     """
 
 # ==========================================
@@ -215,6 +222,9 @@ else:
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
 
+    **STRICT CONSTRAINT:**
+    Do not provide specific rewrite examples or sample verbiage. Provide a professional description of the policy violation or missing element only.
+
     CRITICAL COMPLIANCE CHECKS:
     1. BENEFIT TO DISTRICT: Must explicitly state "projected value of the study to Blount County."
     2. BURDEN: Must not interfere with instructional time. No "Convenience Sampling."
@@ -226,7 +236,7 @@ else:
     ### 🚦 Executive Summary
     **Status:** [✅ RECOMMEND FOR REVIEW] or [❌ REVISION NEEDED]
     ### 🔍 Compliance Checklist
-    ### 📝 Detailed Findings & Action Items
+    ### 📝 Detailed Findings & Action Items (Descriptive Only - No Rewrites)
     """
     
     student_inputs = external_inputs
