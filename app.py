@@ -191,7 +191,7 @@ if user_mode == "AP Research Student":
             }
         }
         """)
-    st.markdown("**For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**. &nbsp Check the sidebar resource to **confirm file-naming standards** for each of your files.")
+    st.markdown("**For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**." &nbsp "Check the sidebar resource to **confirm file-naming standards** for each of your files.")
 
     document_types = [
         "Research Proposal",
@@ -258,7 +258,7 @@ if user_mode == "AP Research Student":
 else:
     st.title("🏛️ External Research Proposal Review")
     st.info("### 📋 Criteria for External Proposals")
-    st.markdown("All research requests involving Blount County Schools (BCS) are critiqued against District Standards (Policy 6.4001). &nbsp Check the sidebar resource to **confirm file-naming standards** for each of your files.")
+    st.markdown("All research requests involving Blount County Schools (BCS) are critiqued against District Standards (Policy 6.4001)." &nbsp "Check the sidebar resource to **confirm file-naming standards** for each of your files.")
     st.info("You may upload multiple PDF files for each section.")
 
     external_inputs = {}
