@@ -6,8 +6,8 @@ import random
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="BCS Research Review Portal", 
-    page_icon="🏫", 
+    page_title="BCS Research Review Portal",
+    page_icon="🏫",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -348,7 +348,12 @@ if st.button("Run Compliance Check"):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
         ]
 
-        model = genai.GenerativeModel(model_name='gemini-flash-latest', generation_config=generation_config, safety_settings=safety_settings)
+        # --- UPDATE: Switched to 1.5-flash to fix 429 Errors and increase quota ---
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-flash', 
+            generation_config=generation_config, 
+            safety_settings=safety_settings
+        )
 
         # 3. PREPARING TEXT
         status.info("📄 Reading your PDF files...")
