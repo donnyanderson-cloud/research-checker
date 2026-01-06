@@ -6,8 +6,8 @@ import random
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
-    page_title="BCS Research Review Portal",
-    page_icon="🏫",
+    page_title="BCS Research Review Portal", 
+    page_icon="🏫", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -56,7 +56,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 4. INTELLIGENT KEY LOAD BALANCER
+    # 4. KEY MANAGEMENT
     api_key = None
     
     # Check for the list of keys (Primary Method for Classrooms)
@@ -323,6 +323,7 @@ else:
     """
     
     student_inputs = external_inputs
+
 # ==========================================
 # EXECUTION LOGIC
 # ==========================================
@@ -359,16 +360,14 @@ if st.button("Run Compliance Check"):
         status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
         # 4. FAIL-SAFE CONNECTION LOOP
-        # We explicitly try the "High Quota" models first.
-        # We avoid "gemini-pro" or "gemini-2.0" because they have low/zero limits.
+        # We target "gemini-1.5-flash" because it has the high 1500/day limit.
+        # We include "001" and "002" variants to ensure connection even if aliases change.
         
         fallback_models = [
-            "gemini-1.5-flash",          # Standard Alias
+            "gemini-1.5-flash",          # Standard Alias (Primary)
             "gemini-1.5-flash-latest",   # Latest Alias
-            "gemini-1.5-flash-001",      # Specific Stable Version (Most likely to work)
+            "gemini-1.5-flash-001",      # Specific Stable Version
             "gemini-1.5-flash-002",      # Newer Stable Version
-            "gemini-1.5-flash-8b",       # Lightweight Version
-            "models/gemini-1.5-flash-001" # Full path fallback
         ]
 
         response = None
@@ -432,7 +431,7 @@ if st.button("Run Compliance Check"):
         else:
             status.error("❌ Connection Failed")
             st.error("""
-            **All high-quota models failed.**
+            **High-quota models failed.**
             1. Your API key may be invalid or expired.
             2. You may have used your entire monthly allowance.
             3. Try generating a new **Free API Key** at https://aistudio.google.com/app/apikey
