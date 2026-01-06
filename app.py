@@ -352,8 +352,14 @@ if st.button("Run Compliance Check"):
         status.info("🔌 Connecting to AI Services...")
         genai.configure(api_key=api_key)
         
-        # 2. CONFIGURATION
-        generation_config = {"temperature": 0.0, "top_p": 1, "top_k": 1, "max_output_tokens": 4096}
+        # 2. CONFIGURATION (FIXED: Temp 0.3 prevents repetition loops)
+        generation_config = {
+            "temperature": 0.3, 
+            "top_p": 0.95, 
+            "top_k": 40, 
+            "max_output_tokens": 8192
+        }
+        
         safety_settings = [
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
