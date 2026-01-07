@@ -61,7 +61,7 @@ with st.sidebar:
     district_keys = []
     if "DISTRICT_KEYS" in st.secrets:
         district_keys = st.secrets["DISTRICT_KEYS"]
-        random.shuffle(district_keys) # Shuffle to distribute load
+        random.shuffle(district_keys) 
         
         if user_mode == "AP Research Student":
             st.success(f"✅ District License Pool Active ({len(district_keys)} Keys)")
@@ -311,7 +311,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (NESTED MODEL STRATEGY)
+# EXECUTION LOGIC (DESPERATION MODE)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not district_keys:
@@ -349,15 +349,15 @@ if st.button("Run Compliance Check"):
         
         status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
-        # 4. NESTED RETRY LOOP
-        # Strategy: For EACH key, we try a hierarchy of models.
-        # This unlocks "hidden" quota on older models if the new ones are blocked.
+        # 4. DESPERATION MODE LOOP
+        # "Flash" models are dead (Limit 0/20).
+        # We now target "Experimental" and "Pro" buckets which likely have unused quota.
         
         models_to_try = [
-            "gemini-2.5-flash-lite",    # 1. Newest (Limit 20)
-            "gemini-1.5-flash-8b",      # 2. High Efficiency (Separate Quota)
-            "gemini-flash-latest",      # 3. General Alias
-            "gemini-1.5-flash"          # 4. Legacy (Limit 1500)
+            "gemini-2.0-flash-exp",   # 1. Experimental (Often high quota)
+            "gemini-exp-1206",        # 2. Another Experimental
+            "gemini-pro-latest",      # 3. Pro Bucket (Limit 50/day per key = 1500 total)
+            "gemini-2.5-pro"          # 4. New Pro Model
         ]
         
         response = None
@@ -365,12 +365,12 @@ if st.button("Run Compliance Check"):
         final_key_index = 0
         final_model_name = ""
 
-        with st.spinner("🤖 Cycling through keys and models..."):
+        with st.spinner("🤖 Flash models busy. Rerouting to Experimental Grid..."):
             # Loop through every available key
             for i, key in enumerate(district_keys):
                 genai.configure(api_key=key)
                 
-                # For this specific key, try ALL model options before giving up on it
+                # For this key, try the "Pro/Exp" models
                 for model_name in models_to_try:
                     try:
                         model = genai.GenerativeModel(
@@ -380,17 +380,15 @@ if st.button("Run Compliance Check"):
                         )
                         response = model.generate_content(user_message)
                         
-                        # If we get here, it worked!
                         success = True
                         final_key_index = i + 1
                         final_model_name = model_name
                         break 
                     except Exception:
-                        # If this model fails on this key, try the next model on the SAME key
                         continue
                 
                 if success:
-                    break # Break the outer key loop if we found a winner
+                    break # Success!
 
         # 5. DISPLAY RESULTS
         if success and response:
@@ -433,7 +431,8 @@ if st.button("Run Compliance Check"):
         else:
             status.error("❌ Connection Failed")
             st.error(f"""
-            **System Exhausted:** Tried {len(district_keys)} keys across {len(models_to_try)} models each.
+            **Total System Exhaustion.** We attempted to use 30 keys across {len(models_to_try)} Experimental/Pro models and all were rejected.
             
-            Please try again in 5 minutes or use a personal key.
+            **This indicates the entire district IP block may be temporarily rate-limited.**
+            Please try again in 1 hour.
             """)
