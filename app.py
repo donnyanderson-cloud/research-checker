@@ -339,7 +339,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (Auto-Discovery Fix)
+# EXECUTION LOGIC (Hard-Coded from Your List)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not api_key:
@@ -379,63 +379,39 @@ if st.button("Run Compliance Check"):
         
         status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
-        # 4. SMART MODEL DISCOVERY (The Fix)
-        # Instead of guessing names, we ask the key: "What can you see?"
-        # Then we pick the best "Lite" or "Flash" model available.
-        
+        # 4. ROBUST MODEL SELECTOR
+        # We are using the EXACT model names from your diagnostic list.
+        # Prioritizing "Lite" because it has the high quota (1,500/day).
+        target_models = [
+            "gemini-2.0-flash-lite-preview-02-05",  # 🥇 BEST: From your list
+            "gemini-2.5-flash-lite",                # 🥈 BACKUP: From your list
+            "gemini-2.0-flash-lite-001",            # 🥉 FALLBACK
+            "gemini-1.5-flash"                      # 🚨 LEGACY
+        ]
+
         response = None
         success = False
         connected_model = ""
 
-        with st.spinner("🤖 Auto-detecting best available model..."):
-            try:
-                # A. Get list of ALL models this key can access
-                all_models = list(genai.list_models())
-                
-                # B. Filter for text-generation models only
-                text_models = [m for m in all_models if 'generateContent' in m.supported_generation_methods]
-                
-                # C. Sort them by preference (Lite > Flash > Pro)
-                # We prioritize Lite because it has the highest free quota (1,500/day)
-                priority_order = [
-                    "flash-lite", # Best for quota
-                    "flash",      # Good fallback
-                    "pro"         # Low quota, last resort
-                ]
-                
-                selected_model_name = None
-                
-                # Try to find a model matching our priority list
-                for keyword in priority_order:
-                    # Look for a model name containing this keyword (e.g., "gemini-2.5-flash-lite")
-                    found = next((m.name for m in text_models if keyword in m.name), None)
-                    if found:
-                        selected_model_name = found
-                        break
-                
-                # If no priority match, just take the first available text model
-                if not selected_model_name and text_models:
-                    selected_model_name = text_models[0].name
-
-                if selected_model_name:
-                    # Clean the name (remove 'models/' prefix if present)
-                    clean_name = selected_model_name.split("/")[-1] if "/" in selected_model_name else selected_model_name
-                    
-                    # D. Run the model
+        with st.spinner("🤖 Connecting..."):
+            for model_name in target_models:
+                try:
+                    # Initialize
                     model = genai.GenerativeModel(
-                        model_name=clean_name, 
+                        model_name=model_name, 
                         generation_config=generation_config, 
                         safety_settings=safety_settings
                     )
+                    # Attempt Generation
                     response = model.generate_content(user_message)
                     success = True
-                    connected_model = clean_name
-                else:
-                    st.error("❌ Your API Key works, but has no access to any text models.")
-
-            except Exception as e:
-                # If the auto-discovery fails, it's usually a true connection/quota error
-                print(f"Error: {e}")
+                    connected_model = model_name
+                    break # Stop if successful
+                    
+                except Exception as e:
+                    # Show the SPECIFIC error for debugging
+                    st.write(f"⚠️ Tried **{model_name}** but failed: {e}")
+                    continue
 
         # 5. DISPLAY RESULTS
         if success and response:
@@ -473,8 +449,4 @@ if st.button("Run Compliance Check"):
                 """)
         else:
             status.error("❌ Connection Failed")
-            st.error("""
-            **System could not find a working model.**
-            1. Please try again in 1 minute (it may be a temporary glitch).
-            2. If this persists, the daily quota for ALL district keys may be exhausted.
-            """)
+            st.error("All models failed. See specific error messages above.")
