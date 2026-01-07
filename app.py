@@ -150,14 +150,17 @@ if user_mode == "AP Research Student":
     with col_text:
         st.title("AP Research IRB Self-Check Tool")
     
-    # --- WORKFLOW GRAPHIC ---
-    with st.expander("🗺️ View Research Workflow Map"):
+   # --- WORKFLOW GRAPHIC (UPDATED 2026) ---
+    with st.expander("🗺️ View New 2026 Workflow Map"):
         st.graphviz_chart("""
         digraph {
             rankdir=TB;
             node [shape=box, style="filled,rounded", fontname="Sans-Serif"];
+            
+            # Colors
             node [fillcolor="#e1f5fe" color="#01579b"]; # Student Blue
             
+            # Phase 1: Creation
             subgraph cluster_0 {
                 label = "Phase 1: Development";
                 style=dashed; color=grey;
@@ -165,40 +168,50 @@ if user_mode == "AP Research Student":
                 Inst [label="Create Instruments"];
                 Draft -> Inst;
             }
+
+            # Phase 2: Optional AI Check
             subgraph cluster_1 {
-                label = "Phase 2: AI Compliance Check";
+                label = "Phase 2: Optional Self-Check";
                 style=filled; color="#e8f5e9";
                 node [fillcolor="#c8e6c9" color="#2e7d32"]; # AI Green
-                Upload [label="🚀 Upload to AI Portal"];
-                Check [label="⚠️ AI Review"];
-                Pass [label="✅ Clean Bill of Health"];
-                Fail [label="❌ Revision Needed"];
-                Inst -> Upload;
-                Upload -> Check;
-                Check -> Pass;
-                Check -> Fail;
-                Fail -> Upload [label="Fix & Re-upload"];
+                
+                AI_Tool [label="🤖 Run AI Compliance Tool"];
+                Feedback [label="🔍 Review AI Findings"];
+                Refine [label="✨ Refine Proposal"];
+                
+                Inst -> AI_Tool [style="dashed" label="Optional"];
+                AI_Tool -> Feedback;
+                Feedback -> Refine;
             }
+
+            # Phase 3: School Approval (The New Authority)
             subgraph cluster_2 {
-                label = "Phase 3: District Approval";
+                label = "Phase 3: School Approval";
                 style=filled; color="#fff9c4";
                 node [fillcolor="#fff59d" color="#fbc02d"]; # District Yellow
-                Submit [label="📧 Submit to Mr. Anderson"];
-                Review [label="District Committee Review"];
-                Approve [label="📜 Approval Letter"];
-                Pass -> Submit;
+                
+                Submit [label="🏫 Submit to School IRB"];
+                Review [label="School Committee Review"];
+                District [label="🏢 District Consultation\n(Complex Cases Only)"];
+                Approve [label="📜 Final Approval"];
+                
+                Inst -> Submit [label="Direct"];
+                Refine -> Submit [label="After AI Fixes"];
+                
                 Submit -> Review;
                 Review -> Approve;
-                Review -> Fail [label="Denied"];
+                Review -> District [label="If Guidance Needed"];
+                District -> Review [label="Advisory Opinion"];
             }
+
+            # Phase 4: Implementation
             subgraph cluster_3 {
                 label = "Phase 4: Implementation";
                 style=filled; color="#f3e5f5";
                 node [fillcolor="#e1bee7" color="#7b1fa2"]; # School Purple
-                Principal [label="📍 Contact Principal"];
                 Start [label="📊 Begin Data Collection"];
-                Approve -> Principal;
-                Principal -> Start [label="Site Permission"];
+                
+                Approve -> Start;
             }
         }
         """)
@@ -433,40 +446,25 @@ if st.button("Run Compliance Check"):
             st.markdown("---")
             st.markdown(response.text)
             
-            # --- CONDITIONAL NEXT STEPS ---
+           # --- CONDITIONAL NEXT STEPS (UPDATED FOR SCHOOL-BASED APPROVAL) ---
             st.markdown("---")
             st.subheader("📬 Next Steps")
             
             if user_mode == "AP Research Student":
                 st.success("""
-                **✅ If all of your artifacts have passed:**
-                1. Confirm your status to your teacher for district submission via email: **donny.anderson@blountk12.org**
-                2. Make sure that all files that were AI screened are shared with Mr. Anderson.
+                **✅ If your proposal looks good:**
+                1. Download or Print this AI Report.
+                2. Submit your Proposal + this Report to your **School IRB Committee** for final approval.
+                *Note: You do not need to email the District unless your School Committee specifically requests a consultation.*
                 """)
-                st.error("""
-                **❌ If your Status is REVISION NEEDED:**
-                * Review the "Action Items" above.
-                * Edit your documents to address the missing policy requirements.
-                * **Re-run this check** until you get a PASS status.
+                st.info("""
+                **❌ If "REVISION NEEDED":**
+                Use the "Action Items" above to improve your draft before submitting it to your School Committee. This will speed up your approval process!
                 """)
             else: 
+                # External Researchers still go to District
                 st.success("""
                 **✅ If all of your artifacts have passed:**
                 Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
                 *⚠️ Make sure that all file sharing options have been addressed prior to your email submission.*
                 """)
-                st.error("""
-                **❌ If the Analysis says "REVISION NEEDED":**
-                Please correct the items listed in the checklist above before emailing the district. 
-                **Non-compliant proposals will be automatically returned.**
-                """)
-        else:
-            status.error("❌ Connection Failed")
-            st.error(f"""
-            **Total District Quota Exhausted.**
-            
-            We tried 30 keys on Modern models AND Legacy models. All were rejected.
-            
-            **IMMEDIATE SOLUTION:**
-            Ask a student to generate a free Personal Key at **https://aistudio.google.com/app/apikey** and paste it into the "Performance Boost" box in the sidebar. This will work immediately.
-            """)
