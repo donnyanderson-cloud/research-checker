@@ -58,12 +58,10 @@ with st.sidebar:
     st.markdown("---")
     
     # 4. KEY MANAGEMENT (LOAD ALL KEYS)
-    # We load the entire list of keys here so we can cycle through them later.
     district_keys = []
     if "DISTRICT_KEYS" in st.secrets:
         district_keys = st.secrets["DISTRICT_KEYS"]
-        # Shuffle them so students don't all hammer Key #1 at the same time
-        random.shuffle(district_keys)
+        random.shuffle(district_keys) # Shuffle to distribute load
         
         if user_mode == "AP Research Student":
             st.success(f"✅ District License Pool Active ({len(district_keys)} Keys)")
@@ -72,13 +70,11 @@ with st.sidebar:
                 st.link_button("1. Get Free API Key ↗️", "https://aistudio.google.com/app/apikey")
                 user_key = st.text_input("Paste your personal key:", type="password")
                 if user_key:
-                    # If user provides a key, we prioritize it by making it the ONLY key in the list
                     district_keys = [user_key]
                     st.success("✅ Using Personal Key")
         else:
             st.success("✅ District License Active")
     
-    # Fallback for legacy single-key setup
     elif "GOOGLE_API_KEY" in st.secrets:
         district_keys = [st.secrets["GOOGLE_API_KEY"]]
         st.success("✅ Single Key Mode Active")
@@ -283,7 +279,6 @@ else:
                 combined_text += extract_text(f) + "\n\n"
             external_inputs["INSTRUMENTS"] = combined_text
 
-    # --- SYSTEM PROMPT (EXTERNAL) ---
     system_prompt = """
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
@@ -316,7 +311,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (WITH KEY ROTATION)
+# EXECUTION LOGIC (NESTED MODEL STRATEGY)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not district_keys:
@@ -328,7 +323,6 @@ if st.button("Run Compliance Check"):
         status = st.empty() 
         status.info("🔌 Connecting to AI Services...")
         
-        # 2. CONFIGURATION
         generation_config = {
             "temperature": 0.3, 
             "top_p": 0.95, 
@@ -355,46 +349,55 @@ if st.button("Run Compliance Check"):
         
         status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
-        # 4. ROBUST KEY ROTATION LOOP
-        # We try every key in the pool. If one is blocked (429), we instantly swap to the next.
+        # 4. NESTED RETRY LOOP
+        # Strategy: For EACH key, we try a hierarchy of models.
+        # This unlocks "hidden" quota on older models if the new ones are blocked.
         
-        # This list targets the exact models we saw in your diagnostic list.
-        # We prioritize the "Lite" model because we know it exists.
-        target_model_name = "gemini-2.5-flash-lite" 
+        models_to_try = [
+            "gemini-2.5-flash-lite",    # 1. Newest (Limit 20)
+            "gemini-1.5-flash-8b",      # 2. High Efficiency (Separate Quota)
+            "gemini-flash-latest",      # 3. General Alias
+            "gemini-1.5-flash"          # 4. Legacy (Limit 1500)
+        ]
         
         response = None
         success = False
-        keys_tried = 0
+        final_key_index = 0
+        final_model_name = ""
 
-        with st.spinner("🤖 Connecting to AI Grid..."):
-            for key in district_keys:
-                keys_tried += 1
-                try:
-                    # Configure with CURRENT key in the loop
-                    genai.configure(api_key=key)
-                    
-                    model = genai.GenerativeModel(
-                        model_name=target_model_name, 
-                        generation_config=generation_config, 
-                        safety_settings=safety_settings
-                    )
-                    
-                    # Try to generate
-                    response = model.generate_content(user_message)
-                    success = True
-                    break # Success! Exit the loop.
-                    
-                except Exception as e:
-                    # If this key fails (429 Quota), we just continue to the next key
-                    # st.write(f"Key {keys_tried} failed: {e}") # Uncomment for debug
-                    continue
+        with st.spinner("🤖 Cycling through keys and models..."):
+            # Loop through every available key
+            for i, key in enumerate(district_keys):
+                genai.configure(api_key=key)
+                
+                # For this specific key, try ALL model options before giving up on it
+                for model_name in models_to_try:
+                    try:
+                        model = genai.GenerativeModel(
+                            model_name=model_name, 
+                            generation_config=generation_config, 
+                            safety_settings=safety_settings
+                        )
+                        response = model.generate_content(user_message)
+                        
+                        # If we get here, it worked!
+                        success = True
+                        final_key_index = i + 1
+                        final_model_name = model_name
+                        break 
+                    except Exception:
+                        # If this model fails on this key, try the next model on the SAME key
+                        continue
+                
+                if success:
+                    break # Break the outer key loop if we found a winner
 
         # 5. DISPLAY RESULTS
         if success and response:
-            if keys_tried > 1:
-                st.toast(f"⚠️ Heavy Traffic: Switched to Key #{keys_tried}", icon="🔀")
+            if final_key_index > 1:
+                st.toast(f"Switched to Key #{final_key_index} ({final_model_name})", icon="🔀")
             else:
-                st.toast("✅ Connected on first attempt", icon="⚡")
+                st.toast(f"Connected: {final_model_name}", icon="⚡")
                 
             status.success("✅ Analysis Complete!")
             st.markdown("---")
@@ -430,7 +433,7 @@ if st.button("Run Compliance Check"):
         else:
             status.error("❌ Connection Failed")
             st.error(f"""
-            **System Overload:** All {len(district_keys)} license keys are currently exhausted.
+            **System Exhausted:** Tried {len(district_keys)} keys across {len(models_to_try)} models each.
             
-            **Please try again in 1 minute**, or use a personal key in the sidebar.
+            Please try again in 5 minutes or use a personal key.
             """)
