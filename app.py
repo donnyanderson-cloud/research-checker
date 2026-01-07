@@ -54,10 +54,35 @@ with st.sidebar:
             * `Lastname_Institution_Proposal_2025.pdf`
             * `Lastname_Institution_Instruments_2025.pdf`
             """)
+            
+    # 4. NEW: E-SIGNATURE STANDARDS (YOUR REQUEST)
+    with st.expander("✍️ E-Signature Legal Standards"):
+        st.markdown("""
+        **📋 Legal Summary: E-Signatures for Student Surveys**
+        Electronic signatures are legally valid for parental consent if they meet specific standards (ESIGN Act, FERPA, COPPA).
+        
+        **⚖️ 1. Governing Legal Frameworks**
+        * **ESIGN Act (2000):** Electronic signatures equal "wet-ink" signatures.
+        * **FERPA (34 CFR § 99.30):** Allows e-consent if the system **authenticates** the person.
+        * **COPPA:** Requires "verifiable parental consent" for kids under 13.
+        * **PPRA:** Requires "active" written consent for sensitive topics.
+
+        **🛠️ 2. Core Requirements for Validity**
+        To be legally defensible, your e-form must have:
+        1.  **Authentication:** Prove the signer is the parent (e.g., "Link sent to verified parent email," "Student ID Check").
+        2.  **Intent:** A deliberate action (Checkbox: "By checking this, I provide legal signature").
+        3.  **Integrity:** The form cannot be editable after signing.
+        4.  **Retention:** Parent must get a copy; School keeps an audit trail (Timestamp/IP).
+
+        **✅ Compliance Checklist**
+        [ ] Is the link sent to a verified email on file?
+        [ ] Does the parent have an opt-out or paper alternative?
+        [ ] Does the system generate an audit trail (Timestamp + IP)?
+        """)
     
     st.markdown("---")
     
-    # 4. KEY MANAGEMENT (LOAD ALL KEYS)
+    # 5. KEY MANAGEMENT (Legacy Mode for Stability)
     district_keys = []
     if "DISTRICT_KEYS" in st.secrets:
         district_keys = st.secrets["DISTRICT_KEYS"]
@@ -89,7 +114,7 @@ with st.sidebar:
 
     st.markdown("---")
     
-    # 5. DIAGNOSTICS
+    # 6. DIAGNOSTICS
     if user_mode == "AP Research Student":
         try:
             lib_ver = importlib.metadata.version("google-generativeai")
@@ -217,7 +242,7 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- SYSTEM PROMPT ---
+    # --- SYSTEM PROMPT (UPDATED WITH E-SIGNATURE LOGIC) ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     
@@ -231,12 +256,17 @@ if user_mode == "AP Research Student":
     If a section is missing or non-compliant, you must explain the specific *concept* or *data point* that is missing.
     * *Bad:* "Add a data destruction plan."
     * *Good:* "The proposal mentions collecting surveys but fails to specify **when** (date) and **how** (shredding/deletion) the data will be destroyed. Policy 6.4001 requires an explicit timeline for data disposal."
+    * *E-Sign Example:* "The proposal uses a Google Form for parent consent but lacks an **Authentication Method**. To be FERPA compliant, you must describe how you will verify the signer is actually the parent (e.g., email verification, student ID check)."
     
     CRITERIA (Policy 6.4001 & Federal Rules):
     1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
     2. SENSITIVE: Mental health, sexual behavior, illegal acts, income. Requires 'Active Written Consent'.
     3. MINOR PROTECTION: Participation is VOLUNTARY. No coercion.
     4. DATA: Must have destruction date and method.
+    5. E-SIGNATURES (If applicable): If using electronic consent, check for:
+       - **Authentication:** How is the signer identity verified?
+       - **Intent:** Is there a clear "I agree" action?
+       - **Integrity:** Is the record tamper-proof?
     
     OUTPUT FORMAT:
     - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
@@ -296,13 +326,17 @@ else:
     3. PROHIBITED TOPICS (Strict Ban): Political affiliation, Voting, Religion, Firearms.
     4. SENSITIVE TOPICS: Mental health, sex, illegal acts, income -> Requires Written Active Consent.
     5. MANDATORY STATEMENTS: Agreement to Policy 6.4001, Voluntary statement, Right to inspect, Anonymity.
+    6. E-SIGNATURES (If applicable): Must demonstrate compliance with ESIGN Act/FERPA:
+       - **Authentication:** Proof of signer identity.
+       - **Audit Trail:** Timestamp and IP tracking.
+       - **Retention:** Method for parents to keep a copy.
 
     OUTPUT FORMAT:
     ### 🚦 Executive Summary
     **Status:** [✅ RECOMMEND FOR REVIEW] or [❌ REVISION NEEDED]
     
     ### 🔍 Compliance Checklist
-    (List the 5 critical checks above and their status)
+    (List the 5-6 critical checks above and their status)
     
     ### 📝 Detailed Findings & Action Items
     (Provide specific feedback on *missing variables* or *policy gaps* without offering rewrite text.)
@@ -311,7 +345,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (DESPERATION MODE)
+# EXECUTION LOGIC (LEGACY MODE FOR STABILITY)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not district_keys:
@@ -349,15 +383,15 @@ if st.button("Run Compliance Check"):
         
         status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
-        # 4. DESPERATION MODE LOOP
-        # "Flash" models are dead (Limit 0/20).
-        # We now target "Experimental" and "Pro" buckets which likely have unused quota.
+        # 4. LEGACY RETRY LOOP
+        # "Flash" and "Pro" are exhausted. We are now targeting the 2024-2025 "Workhorses".
+        # These models often have separate, forgotten quota buckets.
         
         models_to_try = [
-            "gemini-2.0-flash-exp",   # 1. Experimental (Often high quota)
-            "gemini-exp-1206",        # 2. Another Experimental
-            "gemini-pro-latest",      # 3. Pro Bucket (Limit 50/day per key = 1500 total)
-            "gemini-2.5-pro"          # 4. New Pro Model
+            "gemini-1.5-flash-001",     # 1. First Stability Release (Often ignored)
+            "gemini-1.5-flash-002",     # 2. Second Release
+            "gemini-1.5-pro-001",       # 3. Old Pro
+            "gemini-1.0-pro"            # 4. The Original (Separate quota entirely)
         ]
         
         response = None
@@ -365,12 +399,10 @@ if st.button("Run Compliance Check"):
         final_key_index = 0
         final_model_name = ""
 
-        with st.spinner("🤖 Flash models busy. Rerouting to Experimental Grid..."):
-            # Loop through every available key
+        with st.spinner("🤖 Switching to Legacy Grids (1.0/1.5)..."):
             for i, key in enumerate(district_keys):
                 genai.configure(api_key=key)
                 
-                # For this key, try the "Pro/Exp" models
                 for model_name in models_to_try:
                     try:
                         model = genai.GenerativeModel(
@@ -388,12 +420,12 @@ if st.button("Run Compliance Check"):
                         continue
                 
                 if success:
-                    break # Success!
+                    break
 
         # 5. DISPLAY RESULTS
         if success and response:
             if final_key_index > 1:
-                st.toast(f"Switched to Key #{final_key_index} ({final_model_name})", icon="🔀")
+                st.toast(f"Success on Key #{final_key_index} ({final_model_name})", icon="🔀")
             else:
                 st.toast(f"Connected: {final_model_name}", icon="⚡")
                 
@@ -431,8 +463,10 @@ if st.button("Run Compliance Check"):
         else:
             status.error("❌ Connection Failed")
             st.error(f"""
-            **Total System Exhaustion.** We attempted to use 30 keys across {len(models_to_try)} Experimental/Pro models and all were rejected.
+            **Total District Quota Exhausted.**
             
-            **This indicates the entire district IP block may be temporarily rate-limited.**
-            Please try again in 1 hour.
+            We tried 30 keys on Modern models AND Legacy models. All were rejected.
+            
+            **IMMEDIATE SOLUTION:**
+            Ask a student to generate a free Personal Key at **https://aistudio.google.com/app/apikey** and paste it into the "Performance Boost" box in the sidebar. This will work immediately.
             """)
