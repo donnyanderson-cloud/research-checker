@@ -54,8 +54,8 @@ with st.sidebar:
             * `Lastname_Institution_Proposal_2025.pdf`
             * `Lastname_Institution_Instruments_2025.pdf`
             """)
-            
-    # 4. NEW: E-SIGNATURE STANDARDS (YOUR REQUEST)
+
+    # 4. E-SIGNATURE STANDARDS
     with st.expander("✍️ E-Signature Legal Standards"):
         st.markdown("""
         **📋 Legal Summary: E-Signatures for Student Surveys**
@@ -150,7 +150,7 @@ if user_mode == "AP Research Student":
     with col_text:
         st.title("AP Research IRB Self-Check Tool")
     
-   # --- WORKFLOW GRAPHIC (UPDATED 2026) ---
+    # --- WORKFLOW GRAPHIC (UPDATED 2026) ---
     with st.expander("🗺️ View New 2026 Workflow Map"):
         st.graphviz_chart("""
         digraph {
@@ -216,18 +216,25 @@ if user_mode == "AP Research Student":
         }
         """)
     
-# --- [INSERT #3 HERE] --- 
-    # Replace the old bold text line with this new block:
+    # --- UPDATED VERBIAGE ---
     st.markdown("""
     **For BCS Students:** This AI tool is an **optional resource** to help you self-check your work against **Policy 6.4001** before submitting to your School Committee.
     
     * **Final Approval:** Your School IRB Committee.
     * **District Role:** Consulting support for complex cases only.
     """)
-    # ------------------------
-
-    # (The code continues here with the document selectors...)
     st.markdown("Check the sidebar resource to **confirm file-naming standards** for each of your files.")
+
+    # --- DOCUMENT SELECTORS (THIS WAS MISSING BEFORE) ---
+    document_types = [
+        "Research Proposal",
+        "Survey / Interview Questions",
+        "Parent Permission Form",
+        "Principal/District Permission Forms"
+    ]
+    selected_docs = st.multiselect("Select documents to screen:", document_types, default=["Research Proposal"])
+    
+    student_inputs = {}
 
     if "Research Proposal" in selected_docs:
         st.markdown("### 1. Research Proposal")
@@ -256,7 +263,7 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- SYSTEM PROMPT (UPDATED WITH E-SIGNATURE LOGIC) ---
+    # --- SYSTEM PROMPT (WITH E-SIGNATURE LOGIC) ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     
@@ -359,7 +366,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (LEGACY MODE FOR STABILITY)
+# EXECUTION LOGIC (LEGACY RETRY + NEW ENDING)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not district_keys:
@@ -447,7 +454,7 @@ if st.button("Run Compliance Check"):
             st.markdown("---")
             st.markdown(response.text)
             
-           # --- CONDITIONAL NEXT STEPS (UPDATED FOR SCHOOL-BASED APPROVAL) ---
+            # --- CONDITIONAL NEXT STEPS (UPDATED FOR SCHOOL-BASED APPROVAL) ---
             st.markdown("---")
             st.subheader("📬 Next Steps")
             
@@ -469,3 +476,13 @@ if st.button("Run Compliance Check"):
                 Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
                 *⚠️ Make sure that all file sharing options have been addressed prior to your email submission.*
                 """)
+        else:
+            status.error("❌ Connection Failed")
+            st.error(f"""
+            **Total District Quota Exhausted.**
+            
+            We tried 30 keys on Modern models AND Legacy models. All were rejected.
+            
+            **IMMEDIATE SOLUTION:**
+            Ask a student to generate a free Personal Key at **https://aistudio.google.com/app/apikey** and paste it into the "Performance Boost" box in the sidebar. This will work immediately.
+            """)
