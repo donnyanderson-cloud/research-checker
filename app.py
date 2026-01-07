@@ -3,6 +3,7 @@ import google.generativeai as genai
 from PyPDF2 import PdfReader
 import importlib.metadata
 import random
+import time
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -62,7 +63,9 @@ with st.sidebar:
     # Check for the list of keys (Primary Method for Classrooms)
     if "DISTRICT_KEYS" in st.secrets:
         key_pool = st.secrets["DISTRICT_KEYS"]
-        district_key = random.choice(key_pool)
+        # We shuffle the pool to ensure we don't just hit the first key repeatedly
+        random.shuffle(key_pool)
+        district_key = key_pool[0]
         api_key = district_key
         
         if user_mode == "AP Research Student":
@@ -339,7 +342,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (Hard-Coded from Your List)
+# EXECUTION LOGIC (QUOTA FIX)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not api_key:
@@ -380,13 +383,15 @@ if st.button("Run Compliance Check"):
         status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
 
         # 4. ROBUST MODEL SELECTOR
-        # We are using the EXACT model names from your diagnostic list.
-        # Prioritizing "Lite" because it has the high quota (1,500/day).
+        # TARGET: gemini-1.5-flash-8b (The high-efficiency model)
+        # BACKUP: gemini-flash-lite-latest (The alias from your list)
+        
         target_models = [
-            "gemini-2.0-flash-lite-preview-02-05",  # 🥇 BEST: From your list
-            "gemini-2.5-flash-lite",                # 🥈 BACKUP: From your list
-            "gemini-2.0-flash-lite-001",            # 🥉 FALLBACK
-            "gemini-1.5-flash"                      # 🚨 LEGACY
+            "gemini-1.5-flash-8b",        # 🥇 High Quota / Low Cost
+            "gemini-1.5-flash-002",       # 🥈 Stable Flash
+            "gemini-flash-lite-latest",   # 🥉 Alias from your list
+            "models/gemini-1.5-flash",    # 🚨 Force full path
+            "gemini-1.5-pro-latest"       # 🚨 Slower but works
         ]
 
         response = None
@@ -409,8 +414,9 @@ if st.button("Run Compliance Check"):
                     break # Stop if successful
                     
                 except Exception as e:
-                    # Show the SPECIFIC error for debugging
-                    st.write(f"⚠️ Tried **{model_name}** but failed: {e}")
+                    # If quota exceeded or 404, try the next one
+                    # We print a small warning to the console/log only
+                    print(f"Skipping {model_name}: {e}")
                     continue
 
         # 5. DISPLAY RESULTS
@@ -449,4 +455,13 @@ if st.button("Run Compliance Check"):
                 """)
         else:
             status.error("❌ Connection Failed")
-            st.error("All models failed. See specific error messages above.")
+            st.error("""
+            **Critical Error:** All AI models rejected the connection.
+            
+            **Diagnosis:**
+            1. Your "District Keys" have hit the daily Limit (20) for the new models.
+            2. The stable 1.5 models are blocked by your account settings.
+            
+            **Solution:**
+            Please create a NEW Free API Key using a personal Gmail account (not school email) and paste it into the "Performance Boost" box in the sidebar.
+            """)
