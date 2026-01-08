@@ -146,7 +146,7 @@ if user_mode == "AP Research Student":
     with col_text:
         st.title("AP Research IRB Self-Check Tool")
     
-    # --- WORKFLOW GRAPHIC (CORRECTED) ---
+    # --- WORKFLOW GRAPHIC (CORRECTED TERMINOLOGY) ---
     with st.expander("🗺️ View Research Workflow Map"):
         st.graphviz_chart("""
         digraph {
@@ -180,7 +180,7 @@ if user_mode == "AP Research Student":
                 style=filled; color="#fff9c4";
                 node [fillcolor="#fff59d" color="#fbc02d"]; # District Yellow
                 Teacher [label="👩‍🏫 Confirm w/ Teacher"];
-                Committee [label="🏫 School Committee Review"];
+                Committee [label="🏫 School Review Committee"];
                 
                 Pass -> Teacher;
                 Teacher -> Committee;
@@ -201,11 +201,12 @@ if user_mode == "AP Research Student":
     st.markdown("**For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**.&nbsp; Check the sidebar resource to **confirm file-naming standards** for each of your files.")
     st.info("💡 **Tip:** Upload ALL your documents (Proposal, Surveys, Consents) at once for the best analysis.")
 
+    # UPDATED DOCUMENT LIST
     document_types = [
         "Research Proposal",
         "Survey / Interview Questions",
         "Parent Permission Form",
-        "Principal/District Permission Forms"
+        "Principal Permission Form (District Form if applicable)" 
     ]
     selected_docs = st.multiselect("Select documents to screen:", document_types, default=["Research Proposal"])
     
@@ -233,12 +234,13 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Parent Form (PDF)", type="pdf", key="ap_parent")
         if file: student_inputs["PARENT_FORM"] = extract_text(file)
 
-    if "Principal/District Permission Forms" in selected_docs:
-        st.markdown("### 4. Principal/District Permission Forms")
-        file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
+    # UPDATED UPLOAD SECTION
+    if "Principal Permission Form (District Form if applicable)" in selected_docs:
+        st.markdown("### 4. Principal / District Permission")
+        file = st.file_uploader("Upload Signed Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- SYSTEM PROMPT (WITH OBSERVATIONAL LOGIC) ---
+    # --- SYSTEM PROMPT (UPDATED TERMINOLOGY) ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     
@@ -247,6 +249,7 @@ if user_mode == "AP Research Student":
     **CONTEXTUAL INTELLIGENCE (METHODOLOGY CHECK):** 1. First, determine the study's methodology.
     2. **IF** the study is Observational, Archival, or Content Analysis (no interaction with human subjects), DO NOT flag missing permissions, consent forms, or survey instruments.
     3. **IF** the study involves Surveys, Interviews, or Focus Groups (Human Subjects), YOU MUST enforce all consent and permission requirements strictly.
+    4. **PERMISSION CHECK (ADVISORY):** All school-based research requires **Principal Permission**. If the proposal involves multiple schools or district-wide data and the District Form is missing, **DO NOT FAIL**. Instead, mark it as a "Recommendation" for the AP Teacher/School Review Committee to review.
     
     **STRICT CONSTRAINTS:** 1. Do NOT rewrite the student's text.
     2. Do NOT provide examples of 'correct' verbiage or phrases to copy.
@@ -257,22 +260,19 @@ if user_mode == "AP Research Student":
     If a section is missing or non-compliant, you must explain the specific *concept* or *data point* that is missing.
     * *Bad:* "Add a data destruction plan."
     * *Good:* "The proposal mentions collecting surveys but fails to specify **when** (date) and **how** (shredding/deletion) the data will be destroyed. Policy 6.4001 requires an explicit timeline for data disposal."
-    * *E-Sign Example:* "The proposal uses a Google Form for parent consent but lacks an **Authentication Method**. To be FERPA compliant, you must describe how you will verify the signer is actually the parent (e.g., email verification, student ID check)."
+    * *Permission Example:* "The proposal involves multiple schools. **Action:** Please consult your AP Research Teacher or **School Review Committee** to determine if a formal District Permission Form is required for this scope."
     
     CRITERIA (Policy 6.4001 & Federal Rules):
     1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
     2. SENSITIVE: Mental health, sexual behavior, illegal acts, income. Requires 'Active Written Consent'.
     3. MINOR PROTECTION: Participation is VOLUNTARY. No coercion.
     4. DATA: Must have destruction date and method.
-    5. E-SIGNATURES (Conditional): **IF** using electronic consent, check for:
-       - **Authentication:** How is the signer identity verified?
-       - **Intent:** Is there a clear "I agree" action?
-       - **Integrity:** Is the record tamper-proof?
+    5. E-SIGNATURES (Conditional): **IF** using electronic consent, check for Authentication, Intent, and Integrity.
     
     OUTPUT FORMAT:
-    - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
+    - STATUS: [✅ PASS] or [❌ REVISION NEEDED] or [⚠️ TEACHER REVIEW RECOMMENDED]
     - FINDINGS: Bullet points of observed status.
-    - ACTION: Provide detailed instructions on what information must be added to satisfy the policy. Reference specific missing variables (e.g., dates, locations, names, methods).
+    - ACTION: Detailed instructions. For ambiguous cases, frame it as a question for the **School Review Committee**.
     """
 
 # ==========================================
@@ -446,11 +446,11 @@ if st.button("Run Compliance Check"):
             st.subheader("📬 Next Steps")
             
             if user_mode == "AP Research Student":
-                # UPDATED NEXT STEPS (TEACHER -> COMMITTEE)
+                # UPDATED NEXT STEPS (TERMINOLOGY)
                 st.success("""
                 **✅ If all of your artifacts have passed:**
                 1. **Confirm your status with your AP Research Teacher.**
-                2. Plan for your **School Committee Approval** meeting.
+                2. Plan for your **School Review Committee** meeting.
                 3. Ensure all screened files are organized and ready for final review.
                 """)
                 st.error("""
