@@ -86,6 +86,7 @@ with st.sidebar:
                 district_keys = keys_raw
             elif isinstance(keys_raw, str):
                 district_keys = [k.strip() for k in keys_raw.split(",")]
+            # Randomize to prevent hotspots
             random.shuffle(district_keys)
             
             if user_mode == "AP Research Student":
@@ -198,6 +199,7 @@ if user_mode == "AP Research Student":
         """)
     
     st.markdown("**For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**.&nbsp; Check the sidebar resource to **confirm file-naming standards** for each of your files.")
+    st.info("💡 **Tip:** Upload ALL your documents (Proposal, Surveys, Consents) at once for the best analysis.")
 
     document_types = [
         "Research Proposal",
@@ -236,15 +238,16 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- SYSTEM PROMPT (E-SIGN COMPATIBLE) ---
+    # --- SYSTEM PROMPT (ANTI-LOOP & NO REWRITE) ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     
     INSTRUCTION: Review the student proposal for compliance with Policy 6.4001. 
     
-    **STRICT CONSTRAINT:** 1. Do NOT rewrite the student's text.
+    **STRICT CONSTRAINTS:** 1. Do NOT rewrite the student's text.
     2. Do NOT provide examples of 'correct' verbiage or phrases to copy.
-    3. You must be DESCRIPTIVE and DIRECTIVE. 
+    3. You must be DESCRIPTIVE and DIRECTIVE (tell them WHAT is missing, not HOW to write it).
+    4. **NO REPETITION:** Do not list the same finding multiple times. Group similar issues into a single bullet point.
     
     **HOW TO GENERATE ACTION STEPS:**
     If a section is missing or non-compliant, you must explain the specific *concept* or *data point* that is missing.
@@ -307,8 +310,10 @@ else:
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
 
-    **STRICT CONSTRAINT:**
-    Do not provide specific rewrite examples or sample verbiage. Provide a professional description of the policy violation or missing element only.
+    **STRICT CONSTRAINTS:**
+    1. Do not provide specific rewrite examples or sample verbiage. 
+    2. Provide a professional description of the policy violation or missing element only.
+    3. **NO REPETITION:** Do not list the same finding multiple times.
 
     **GUIDANCE FOR FEEDBACK:**
     Your "Action Items" must be specific enough to guide the researcher without drafting the text for them.
@@ -339,7 +344,7 @@ else:
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (GENTLE ROTATION)
+# EXECUTION LOGIC (ANTI-LOOP & GENTLE ROTATION)
 # ==========================================
 if st.button("Run Compliance Check"):
     if not district_keys:
@@ -351,9 +356,9 @@ if st.button("Run Compliance Check"):
         status = st.empty() 
         status.info("🔌 Connecting to AI Services...")
         
-        # Temp 0.3 prevents repetition, top_k 40 is standard
+        # KEY FIX: Temp 0.5 prevents loops; Top_K 40 keeps it focused.
         generation_config = {
-            "temperature": 0.3, 
+            "temperature": 0.5, 
             "top_p": 0.95, 
             "top_k": 40, 
             "max_output_tokens": 8192
@@ -363,106 +368,4 @@ if st.button("Run Compliance Check"):
             {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
             {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
             {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
-        ]
-
-        # 3. PREPARING TEXT
-        status.info("📄 Reading your PDF files...")
-        user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
-        
-        total_chars = 0
-        for doc_type, content in student_inputs.items():
-            clean_content = str(content)[:40000]
-            total_chars += len(clean_content)
-            user_message += f"\n--- {doc_type} ---\n{clean_content}\n" 
-        
-        status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
-
-        # 4. GENTLE KEY ROTATION
-        models_to_try = [
-            "gemini-1.5-flash-8b", 
-            "gemini-2.5-flash-lite", 
-            "gemini-1.5-flash"
-        ]
-        
-        response = None
-        success = False
-        final_key_index = 0
-        final_model_name = ""
-
-        with st.spinner(f"🤖 Cycling through {len(district_keys)} keys (Gentle Mode)..."):
-            for i, key in enumerate(district_keys):
-                # VITAL: Small sleep to prevent IP Ban from Google
-                if i > 0: time.sleep(0.5)
-                
-                genai.configure(api_key=key)
-                
-                for model_name in models_to_try:
-                    try:
-                        model = genai.GenerativeModel(
-                            model_name=model_name, 
-                            generation_config=generation_config, 
-                            safety_settings=safety_settings
-                        )
-                        response = model.generate_content(user_message)
-                        
-                        success = True
-                        final_key_index = i + 1
-                        final_model_name = model_name
-                        break 
-                    except Exception:
-                        continue
-                
-                if success:
-                    break
-
-        # 5. DISPLAY RESULTS
-        if success and response:
-            if final_key_index > 1:
-                st.toast(f"Switched to Key #{final_key_index} ({final_model_name})", icon="🔀")
-            else:
-                st.toast(f"Connected: {final_model_name}", icon="⚡")
-                
-            status.success("✅ Analysis Complete!")
-            st.markdown("---")
-            st.markdown(response.text)
-            
-            st.markdown("---")
-            st.subheader("📬 Next Steps")
-            
-            if user_mode == "AP Research Student":
-                # UPDATED WORKFLOW FOR SCHOOL COMMITTEE
-                st.success("""
-                **✅ If all of your artifacts have passed:**
-                1. **Confirm your status with your AP Research Teacher.**
-                2. Plan for your **School Committee Approval** meeting.
-                3. Ensure all screened files are organized and ready for final review.
-                """)
-                st.error("""
-                **❌ If your Status is REVISION NEEDED:**
-                * Review the "Action Items" above.
-                * Edit your documents to address the missing policy requirements.
-                * **Re-run this check** until you get a PASS status.
-                """)
-            else: 
-                # External Researchers still email the district
-                st.success("""
-                **✅ If all of your artifacts have passed:**
-                Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
-                *⚠️ Make sure that all file sharing options have been addressed prior to your email submission.*
-                """)
-                st.error("""
-                **❌ If the Analysis says "REVISION NEEDED":**
-                Please correct the items listed in the checklist above before emailing the district. 
-                **Non-compliant proposals will be automatically returned.**
-                """)
-        else:
-            status.error("❌ Connection Failed")
-            st.error(f"""
-            **System Exhausted:** We tried {len(district_keys)} keys and all were rejected.
-            
-            **Diagnosis:**
-            1. **Reboot Required:** If you just added keys, you MUST reboot the app for them to load.
-            2. **IP Limit:** Too many requests in 1 second. (This updated code fixes this).
-            3. **Bad Key Format:** Check your secrets.toml file for missing commas.
-            """)
+            {"category":
