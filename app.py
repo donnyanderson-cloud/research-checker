@@ -146,7 +146,7 @@ if user_mode == "AP Research Student":
     with col_text:
         st.title("AP Research IRB Self-Check Tool")
     
-    # --- WORKFLOW GRAPHIC ---
+    # --- WORKFLOW GRAPHIC (CORRECTED) ---
     with st.expander("🗺️ View Research Workflow Map"):
         st.graphviz_chart("""
         digraph {
@@ -176,16 +176,15 @@ if user_mode == "AP Research Student":
                 Fail -> Upload [label="Fix & Re-upload"];
             }
             subgraph cluster_2 {
-                label = "Phase 3: District Approval";
+                label = "Phase 3: School Level Approval";
                 style=filled; color="#fff9c4";
                 node [fillcolor="#fff59d" color="#fbc02d"]; # District Yellow
-                Submit [label="📧 Submit to Mr. Anderson"];
-                Review [label="District Committee Review"];
-                Approve [label="📜 Approval Letter"];
-                Pass -> Submit;
-                Submit -> Review;
-                Review -> Approve;
-                Review -> Fail [label="Denied"];
+                Teacher [label="👩‍🏫 Confirm w/ Teacher"];
+                Committee [label="🏫 School Committee Review"];
+                
+                Pass -> Teacher;
+                Teacher -> Committee;
+                Committee -> Fail [label="Revisions"];
             }
             subgraph cluster_3 {
                 label = "Phase 4: Implementation";
@@ -193,7 +192,7 @@ if user_mode == "AP Research Student":
                 node [fillcolor="#e1bee7" color="#7b1fa2"]; # School Purple
                 Principal [label="📍 Contact Principal"];
                 Start [label="📊 Begin Data Collection"];
-                Approve -> Principal;
+                Committee -> Principal [label="Approved"];
                 Principal -> Start [label="Site Permission"];
             }
         }
@@ -433,7 +432,7 @@ if st.button("Run Compliance Check"):
 
         # 5. DISPLAY RESULTS
         if success and response:
-            # VISUAL KEY TRACKER (Answers your question: "Is it working?")
+            # VISUAL KEY TRACKER
             if final_key_index > 1:
                 st.toast(f"⚠️ Load Balanced: Switched to Key #{final_key_index} ({final_model_name})", icon="🔀")
             else:
@@ -447,6 +446,7 @@ if st.button("Run Compliance Check"):
             st.subheader("📬 Next Steps")
             
             if user_mode == "AP Research Student":
+                # UPDATED NEXT STEPS (TEACHER -> COMMITTEE)
                 st.success("""
                 **✅ If all of your artifacts have passed:**
                 1. **Confirm your status with your AP Research Teacher.**
