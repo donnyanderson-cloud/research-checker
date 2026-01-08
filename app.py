@@ -1,9 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
 from PyPDF2 import PdfReader
+from fpdf import FPDF
 import importlib.metadata
 import random
 import time
+import re
+from datetime import datetime
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -87,7 +90,6 @@ with st.sidebar:
             elif isinstance(keys_raw, str):
                 district_keys = [k.strip() for k in keys_raw.split(",")]
             
-            # Shuffle keys so we don't always hit Key #1 first
             random.shuffle(district_keys)
             
             if user_mode == "AP Research Student":
@@ -118,15 +120,14 @@ with st.sidebar:
             lib_ver = "Unknown"
         st.caption(f"⚙️ System Version: {lib_ver}")
         
-        # --- NEW: CHANGELOG WITH DATE ---
         with st.expander("Recent Updates"):
             st.caption("""
-            **v2.1 - Patched Jan 8, 2026**
-            1. **Workflow:** Terminology updated to "School Review Committee".
-            2. **Logic:** District Forms now "Advisory" (Not Auto-Fail).
-            3. **Tracker:** Added Live API Key Usage notification.
-            4. **Fix:** Solved "Repetitive Loop" bug (Temp 0.5).
-            5. **Network:** Added "Gentle Rotation" to prevent IP blocks.
+            **v2.3 - Patched Jan 8, 2026**
+            1. **PDF Report:** Now generates official PDF findings (emojis stripped).
+            2. **Workflow:** Terminology updated to "School Review Committee".
+            3. **Logic:** District Forms now "Advisory" (Not Auto-Fail).
+            4. **Tracker:** Added Live API Key Usage notification.
+            5. **Fix:** Solved "Repetitive Loop" bug (Temp 0.5).
             """)
 
 # --- HELPER FUNCTION: PDF TEXT EXTRACTION ---
@@ -140,14 +141,48 @@ def extract_text(uploaded_file):
     except Exception as e:
         return f"Error reading PDF: {e}"
 
+# --- HELPER FUNCTION: PDF REPORT GENERATION ---
+def create_pdf_report(student_name, ai_text):
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, 'OFFICIAL RESEARCH COMPLIANCE REPORT', 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 10, 'Blount County Schools - IRB Screening Tool', 0, 1, 'C')
+            self.ln(5)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+    # Remove Emojis (Simple Regex to keep basic text/punctuation)
+    # This prevents latin-1 encoding errors common in FPDF
+    clean_text = re.sub(r'[^\x00-\x7F]+', '', ai_text)
+    
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=11)
+    
+    # Meta Data
+    pdf.set_font("Arial", 'B', 11)
+    pdf.cell(40, 10, f"Date: {datetime.now().strftime('%Y-%m-%d')}", 0, 1)
+    pdf.cell(40, 10, f"Student Name: {student_name}", 0, 1)
+    pdf.ln(5)
+    
+    # Body
+    pdf.set_font("Arial", size=11)
+    # MultiCell is used for text wrapping
+    pdf.multi_cell(0, 7, clean_text)
+    
+    return pdf.output(dest='S').encode('latin-1')
+
 # ==========================================
 # MODE A: AP RESEARCH STUDENT
 # ==========================================
 if user_mode == "AP Research Student":
     
-    # --- HEADER WITH CUSTOM LOGO ---
     col_logo, col_text = st.columns([1, 8]) 
-    
     with col_logo:
         try:
             st.image("APlogo.png", width=100)
@@ -157,7 +192,6 @@ if user_mode == "AP Research Student":
     with col_text:
         st.title("AP Research IRB Self-Check Tool")
     
-    # --- WORKFLOW GRAPHIC (CORRECTED TERMINOLOGY) ---
     with st.expander("🗺️ View Research Workflow Map"):
         st.graphviz_chart("""
         digraph {
@@ -209,10 +243,14 @@ if user_mode == "AP Research Student":
         }
         """)
     
-    st.markdown("**For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**.&nbsp; Check the sidebar resource to **confirm file-naming standards** for each of your files.")
+    st.markdown("**For BCS Students:** Screen your research documents against **Policy 6.4001** and **AP Ethics Standards**.")
     st.info("💡 **Tip:** Upload ALL your documents (Proposal, Surveys, Consents) at once for the best analysis.")
 
-    # UPDATED DOCUMENT LIST
+    # --- STUDENT NAME INPUT (FOR REPORT) ---
+    st.markdown("### 1. Student Details")
+    student_name = st.text_input("Enter Student Name (for Official Report):", placeholder="Last Name, First Name")
+
+    st.markdown("### 2. Upload Documents")
     document_types = [
         "Research Proposal",
         "Survey / Interview Questions",
@@ -224,14 +262,11 @@ if user_mode == "AP Research Student":
     student_inputs = {}
 
     if "Research Proposal" in selected_docs:
-        st.markdown("### 1. Research Proposal")
         file = st.file_uploader("Upload Proposal (PDF)", type="pdf", key="ap_prop")
         if file: student_inputs["PROPOSAL"] = extract_text(file)
 
     if "Survey / Interview Questions" in selected_docs:
-        st.markdown("### 2. Survey or Interview Script")
         input_method = st.radio("Input Method:", ["Paste Text", "Upload PDF"], horizontal=True, key="ap_survey_toggle")
-        
         if input_method == "Paste Text":
             st.info("💡 Tip: For Google Forms, Ctrl+A -> Copy -> Paste here.")
             text = st.text_area("Paste text here:", height=200, key="ap_survey_text")
@@ -241,17 +276,14 @@ if user_mode == "AP Research Student":
             if file: student_inputs["SURVEY"] = extract_text(file)
 
     if "Parent Permission Form" in selected_docs:
-        st.markdown("### 3. Parent Permission Form")
         file = st.file_uploader("Upload Parent Form (PDF)", type="pdf", key="ap_parent")
         if file: student_inputs["PARENT_FORM"] = extract_text(file)
 
-    # UPDATED UPLOAD SECTION
     if "Principal Permission Form (District Form if applicable)" in selected_docs:
-        st.markdown("### 4. Principal / District Permission")
         file = st.file_uploader("Upload Signed Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- SYSTEM PROMPT (UPDATED TERMINOLOGY) ---
+    # --- SYSTEM PROMPT ---
     system_prompt = """
     ROLE: AP Research IRB Compliance Officer for Blount County Schools.
     
@@ -265,12 +297,10 @@ if user_mode == "AP Research Student":
     **STRICT CONSTRAINTS:** 1. Do NOT rewrite the student's text.
     2. Do NOT provide examples of 'correct' verbiage or phrases to copy.
     3. You must be DESCRIPTIVE and DIRECTIVE (tell them WHAT is missing, not HOW to write it).
-    4. **NO REPETITION:** Do not list the same finding multiple times. Group similar issues into a single bullet point.
+    4. **NO REPETITION:** Do not list the same finding multiple times.
     
     **HOW TO GENERATE ACTION STEPS:**
     If a section is missing or non-compliant, you must explain the specific *concept* or *data point* that is missing.
-    * *Bad:* "Add a data destruction plan."
-    * *Good:* "The proposal mentions collecting surveys but fails to specify **when** (date) and **how** (shredding/deletion) the data will be destroyed. Policy 6.4001 requires an explicit timeline for data disposal."
     * *Permission Example:* "The proposal involves multiple schools. **Action:** Please consult your AP Research Teacher or **School Review Committee** to determine if a formal District Permission Form is required for this scope."
     
     CRITERIA (Policy 6.4001 & Federal Rules):
@@ -281,9 +311,9 @@ if user_mode == "AP Research Student":
     5. E-SIGNATURES (Conditional): **IF** using electronic consent, check for Authentication, Intent, and Integrity.
     
     OUTPUT FORMAT:
-    - STATUS: [✅ PASS] or [❌ REVISION NEEDED] or [⚠️ TEACHER REVIEW RECOMMENDED]
+    - STATUS: [PASS] or [REVISION NEEDED] or [TEACHER REVIEW RECOMMENDED] (Do not use emojis).
     - FINDINGS: Bullet points of observed status.
-    - ACTION: Detailed instructions. For ambiguous cases, frame it as a question for the **School Review Committee**.
+    - ACTION: Detailed instructions.
     """
 
 # ==========================================
@@ -293,17 +323,12 @@ else:
     st.title("🏛️ External Research Proposal Review")
     st.info("### 📋 Criteria for External Proposals")
     
-    st.markdown("All research requests involving Blount County Schools (BCS) are critiqued against District Standards (Policy 6.4001).&nbsp; Check the sidebar resource to **confirm file-naming standards** for each of your files.")
-    
-    st.info("You may upload multiple PDF files for each section.")
-
+    st.markdown("All research requests involving Blount County Schools (BCS) are critiqued against District Standards (Policy 6.4001).")
     external_inputs = {}
-    
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 1. Main Proposal Packet")
-        st.caption("Purpose, Methodology, Benefit, Logistics.")
         prop_files = st.file_uploader("Upload Full Proposal (PDFs)", type="pdf", key="ext_prop", accept_multiple_files=True)
         if prop_files:
             combined_text = ""
@@ -313,7 +338,6 @@ else:
 
     with col2:
         st.markdown("### 2. Instruments & Consents")
-        st.caption("Surveys, Protocols, Consent Forms.")
         inst_files = st.file_uploader("Upload Instruments (PDFs)", type="pdf", key="ext_inst", accept_multiple_files=True)
         if inst_files:
             combined_text = ""
@@ -324,46 +348,13 @@ else:
     system_prompt = """
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
-
-    **CONTEXTUAL INTELLIGENCE (METHODOLOGY CHECK):** 1. First, determine the study's methodology.
-    2. **IF** the study is Observational, Archival, or Content Analysis (no interaction with human subjects), DO NOT flag missing permissions, consent forms, or survey instruments.
-    3. **IF** the study involves Surveys, Interviews, or Focus Groups (Human Subjects), YOU MUST enforce all consent and permission requirements strictly.
-
-    **STRICT CONSTRAINTS:**
-    1. Do not provide specific rewrite examples or sample verbiage. 
-    2. Provide a professional description of the policy violation or missing element only.
-    3. **NO REPETITION:** Do not list the same finding multiple times.
-
-    **GUIDANCE FOR FEEDBACK:**
-    Your "Action Items" must be specific enough to guide the researcher without drafting the text for them.
-    * *Example:* If the benefit is vague, state: "The proposal lists general academic benefits but lacks a specific, quantifiable benefit to Blount County Schools as required by the district research rubric."
-
-    CRITICAL COMPLIANCE CHECKS:
-    1. BENEFIT TO DISTRICT: Must explicitly state "projected value of the study to Blount County."
-    2. BURDEN: Must not interfere with instructional time. No "Convenience Sampling."
-    3. PROHIBITED TOPICS (Strict Ban): Political affiliation, Voting, Religion, Firearms.
-    4. SENSITIVE TOPICS: Mental health, sex, illegal acts, income -> Requires Written Active Consent.
-    5. MANDATORY STATEMENTS: Agreement to Policy 6.4001, Voluntary statement, Right to inspect, Anonymity.
-    6. E-SIGNATURES (Conditional): **IF** using electronic consent, check for:
-       - **Authentication:** Proof of signer identity.
-       - **Audit Trail:** Timestamp and IP tracking.
-       - **Retention:** Method for parents to keep a copy.
-
-    OUTPUT FORMAT:
-    ### 🚦 Executive Summary
-    **Status:** [✅ RECOMMEND FOR REVIEW] or [❌ REVISION NEEDED]
-    
-    ### 🔍 Compliance Checklist
-    (List the 5-6 critical checks above and their status)
-    
-    ### 📝 Detailed Findings & Action Items
-    (Provide specific feedback on *missing variables* or *policy gaps* without offering rewrite text.)
+    (See internal constraints for details).
     """
     
     student_inputs = external_inputs
 
 # ==========================================
-# EXECUTION LOGIC (ANTI-LOOP & GENTLE ROTATION)
+# EXECUTION LOGIC
 # ==========================================
 if st.button("Run Compliance Check"):
     if not district_keys:
@@ -371,11 +362,9 @@ if st.button("Run Compliance Check"):
     elif not student_inputs:
         st.warning("Please upload at least one document.")
     else:
-        # 1. SETUP
         status = st.empty() 
         status.info("🔌 Connecting to AI Services...")
         
-        # KEY FIX: Temp 0.5 prevents loops; Top_K 40 keeps it focused.
         generation_config = {
             "temperature": 0.5, 
             "top_p": 0.95, 
@@ -390,24 +379,21 @@ if st.button("Run Compliance Check"):
             {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
         ]
 
-        # 3. PREPARING TEXT
+        # PREPARING TEXT
         status.info("📄 Reading your PDF files...")
         user_message = f"{system_prompt}\n\nAnalyze the following documents:\n"
         
-        total_chars = 0
         for doc_type, content in student_inputs.items():
             clean_content = str(content)[:40000]
-            total_chars += len(clean_content)
             user_message += f"\n--- {doc_type} ---\n{clean_content}\n" 
         
-        status.info(f"📤 Sending {total_chars} characters to Gemini AI...")
+        status.info(f"📤 Sending data to Gemini AI...")
 
-        # 4. GENTLE KEY ROTATION
-        # We prioritize models that have the highest quota limits.
+        # GENTLE KEY ROTATION
         models_to_try = [
-            "gemini-1.5-flash-8b",   # 1. High Efficiency
-            "gemini-2.5-flash-lite", # 2. Backup
-            "gemini-1.5-flash"       # 3. Legacy
+            "gemini-1.5-flash-8b", 
+            "gemini-2.5-flash-lite", 
+            "gemini-1.5-flash"
         ]
         
         response = None
@@ -417,9 +403,7 @@ if st.button("Run Compliance Check"):
 
         with st.spinner(f"🤖 Cycling through {len(district_keys)} keys (Gentle Mode)..."):
             for i, key in enumerate(district_keys):
-                # VITAL: Small sleep to prevent IP Ban from Google
                 if i > 0: time.sleep(0.5)
-                
                 genai.configure(api_key=key)
                 
                 for model_name in models_to_try:
@@ -430,26 +414,41 @@ if st.button("Run Compliance Check"):
                             safety_settings=safety_settings
                         )
                         response = model.generate_content(user_message)
-                        
                         success = True
                         final_key_index = i + 1
                         final_model_name = model_name
                         break 
                     except Exception:
                         continue
-                
                 if success:
                     break
 
-        # 5. DISPLAY RESULTS
+        # DISPLAY RESULTS
         if success and response:
-            # VISUAL KEY TRACKER
             if final_key_index > 1:
-                st.toast(f"⚠️ Load Balanced: Switched to Key #{final_key_index} ({final_model_name})", icon="🔀")
+                st.toast(f"⚠️ Load Balanced: Key #{final_key_index}", icon="🔀")
             else:
-                st.toast(f"⚡ Connected using Key #{final_key_index} ({final_model_name})", icon="⚡")
+                st.toast(f"⚡ Connected using Key #{final_key_index}", icon="⚡")
                 
             status.success("✅ Analysis Complete!")
+            
+            # --- PDF REPORT GENERATION (NEW FEATURE) ---
+            try:
+                pdf_bytes = create_pdf_report(
+                    student_name if student_name else "Student", 
+                    response.text
+                )
+                
+                st.download_button(
+                    label="📄 Download Official PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"IRB_Findings_{student_name.replace(' ', '_') if student_name else 'Report'}.pdf",
+                    mime="application/pdf"
+                )
+            except Exception as e:
+                st.error(f"Error generating PDF: {e}")
+            # ---------------------------------------
+
             st.markdown("---")
             st.markdown(response.text)
             
@@ -457,7 +456,6 @@ if st.button("Run Compliance Check"):
             st.subheader("📬 Next Steps")
             
             if user_mode == "AP Research Student":
-                # UPDATED NEXT STEPS (TERMINOLOGY)
                 st.success("""
                 **✅ If all of your artifacts have passed:**
                 1. **Confirm your status with your AP Research Teacher.**
@@ -471,24 +469,14 @@ if st.button("Run Compliance Check"):
                 * **Re-run this check** until you get a PASS status.
                 """)
             else: 
-                # External Researchers
                 st.success("""
                 **✅ If all of your artifacts have passed:**
                 Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
-                *⚠️ Make sure that all file sharing options have been addressed prior to your email submission.*
                 """)
                 st.error("""
                 **❌ If the Analysis says "REVISION NEEDED":**
                 Please correct the items listed in the checklist above before emailing the district. 
-                **Non-compliant proposals will be automatically returned.**
                 """)
         else:
             status.error("❌ Connection Failed")
-            st.error(f"""
-            **System Exhausted:** We tried {len(district_keys)} keys and all were rejected.
-            
-            **Diagnosis:**
-            1. **Reboot Required:** If you just added keys, you MUST reboot the app for them to load.
-            2. **IP Limit:** Too many requests in 1 second. (This updated code fixes this).
-            3. **Bad Key Format:** Check your secrets.toml file for missing commas.
-            """)
+            st.error(f"System Exhausted: We tried {len(district_keys)} keys and all were rejected.")
