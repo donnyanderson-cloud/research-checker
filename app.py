@@ -118,10 +118,10 @@ with st.sidebar:
             lib_ver = "Unknown"
         st.caption(f"⚙️ System Version: {lib_ver}")
         
-        # --- NEW: CHANGELOG (CLEAN) ---
+        # --- NEW: CHANGELOG WITH DATE ---
         with st.expander("Recent Updates"):
             st.caption("""
-            **Latest Patches:**
+            **v2.1 - Patched Jan 8, 2026**
             1. **Workflow:** Terminology updated to "School Review Committee".
             2. **Logic:** District Forms now "Advisory" (Not Auto-Fail).
             3. **Tracker:** Added Live API Key Usage notification.
