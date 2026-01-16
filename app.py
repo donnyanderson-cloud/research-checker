@@ -30,11 +30,12 @@ with st.sidebar:
     st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
 
     # 3. APP UPDATES
-    with st.expander("🆕 App Updates (v2.1)"):
+    with st.expander("🆕 App Updates (v2.3)"):
         st.markdown("""
         **Latest Improvements:**
+        * 🧠 **Educational Feedback:** The AI now explains *why* a revision is needed (citing Policy/FERPA).
+        * 🗺️ **Workflow Update:** Phase 3 now correctly reflects **School-Level IRB** approval.
         * 🚀 **Capacity Boost:** System now uses a 25-Key pool to handle entire classes simultaneously.
-        * 🧠 **Smarter Feedback:** The AI now performs a "Comprehensive Scan" to catch multiple errors at once.
         * 🛡️ **Scope Limits:** AI strictly ignores grammar/quality issues to focus 100% on Policy 6.4001.
         """)
 
@@ -62,15 +63,14 @@ with st.sidebar:
             * `Lastname_Institution_Proposal_2025.pdf`
             * `Lastname_Institution_Instruments_2025.pdf`
             """)
-            
-    # 5. RESOURCES (RESTORED)
+
+    # 5. RESOURCES
     with st.expander("📚 Helpful Resources"):
         st.markdown("""
         **Essential Documents:**
         * [📜 Board Policy 6.4001](https://tsba.net/blount-county-board-of-education-policy-manual/)
-        * [📂 Student Templates Folder](https://drive.google.com/) *(Ask Teacher for Link)*
         """)
-
+    
     st.markdown("---")
     
     # 6. KEY MANAGEMENT
@@ -192,12 +192,12 @@ if user_mode == "AP Research Student":
 
             # Phase 3
             subgraph cluster_2 {
-                label = "Phase 3: District Approval";
+                label = "Phase 3: School IRB Approval";
                 style=filled; color="#fff9c4";
                 
-                node [fillcolor="#fff59d" color="#fbc02d"]; # District Yellow
-                Submit [label="📧 Submit to Mr. Anderson"];
-                Review [label="District Committee Review"];
+                node [fillcolor="#fff59d" color="#fbc02d"]; # School Yellow
+                Submit [label="📧 Submit to School IRB"];
+                Review [label="School Committee Review"];
                 Approve [label="📜 Approval Letter"];
                 
                 Pass -> Submit;
@@ -260,36 +260,27 @@ if user_mode == "AP Research Student":
         file = st.file_uploader("Upload Permission Form (PDF)", type="pdf", key="ap_perm")
         if file: student_inputs["PERMISSION_FORM"] = extract_text(file)
 
-    # --- UPDATED SYSTEM PROMPT (SCOPE LIMITED + COMPREHENSIVE SCAN) ---
+    # --- SYSTEM PROMPT (STUDENT) ---
     system_prompt = """
-    ROLE: AP Research IRB Compliance Officer for Blount County Schools.
+    ROLE: AP Research IRB Compliance Officer.
     
     INSTRUCTION: Review the student proposal for compliance with Policy 6.4001.
     
-    **REVIEW STRATEGY (CRITICAL):**
-    You must perform a **COMPREHENSIVE SCAN**. Do not stop after finding the first major error. You must list **EVERY** single compliance violation found in the document in this one response.
+    **REVIEW STRATEGY:**
+    1. **COMPREHENSIVE SCAN:** Identify all compliance gaps.
+    2. **GROUPING:** Combine related issues into single Action Steps (e.g., group all "Consent Form" missing items together).
+    3. **EDUCATIONAL RATIONALE:** For each Action Step, you must explain **WHY** the revision is needed by citing Policy 6.4001, FERPA, or the District Research Rubric.
     
     **STRICT CONSTRAINTS:** 1. Do NOT rewrite the student's text.
     2. Do NOT provide examples of 'correct' verbiage.
-    3. Be brief but clear.
-    4. **SCOPE LIMITATION:** Do NOT critique the student's grammar, sentence structure, or research quality/methodology. Only flag issues that strictly violate Policy 6.4001, Federal Regulations, or Ethical Standards.
+    3. **SCOPE LIMITATION:** Do NOT critique the student's grammar, sentence structure, or research quality/methodology. Only flag issues that strictly violate Policy 6.4001, Federal Regulations, or Ethical Standards.
     
-    **HOW TO GENERATE ACTION STEPS:**
-    * *Bad:* "Fix data destruction."
-    * *Good:* "Proposal lacks a specific **date** and **method** for data destruction (Policy 6.4001)."
-    
-    CRITERIA (Policy 6.4001 & Federal Rules):
-    1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
-    2. SENSITIVE: Mental health, sexual behavior, illegal acts, income. Requires 'Active Written Consent'.
-    3. MINOR PROTECTION: Participation is VOLUNTARY. No coercion.
-    4. DATA: Must have destruction date and method.
-    
-    OUTPUT FORMAT:
+    **OUTPUT FORMAT:**
     - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
-    - COMPREHENSIVE ACTION LIST:
-      * [Violation 1]: [Specific missing variable]
-      * [Violation 2]: [Specific missing variable]
-      * ... (Continue until ALL violations are listed)
+    - ACTION PLAN & RATIONALE:
+      * **[Action Step 1]:** [Clear instruction to fix missing items]
+        * *Rationale:* "[Brief explanation citing Policy/Law]"
+      * **[Action Step 2]:** ...
     """
 
 # ==========================================
@@ -327,7 +318,7 @@ else:
                 combined_text += extract_text(f) + "\n\n"
             external_inputs["INSTRUMENTS"] = combined_text
 
-    # --- SYSTEM PROMPT (EXTERNAL - SCOPE LIMITED) ---
+    # --- SYSTEM PROMPT (EXTERNAL) ---
     system_prompt = """
     ROLE: Research Committee Reviewer for Blount County Schools (BCS).
     TASK: Analyze the external research proposal against District "Regulations and Procedures for Conducting Research Studies" and Board Policy 6.4001.
@@ -336,9 +327,9 @@ else:
     1. Do not provide specific rewrite examples or sample verbiage. 
     2. **SCOPE LIMITATION:** Do NOT critique grammar or research quality (e.g., sample size, typos). Focus ONLY on regulatory compliance (Policy 6.4001, Federal Rules, Ethics).
 
-    **GUIDANCE FOR FEEDBACK:**
-    Your "Action Items" must be specific enough to guide the researcher without drafting the text for them.
-    * *Example:* If the benefit is vague, state: "The proposal lists general academic benefits but lacks a specific, quantifiable benefit to Blount County Schools as required by the district research rubric."
+    **FEEDBACK INSTRUCTIONS:**
+    1. **Consolidate Feedback:** Group related findings.
+    2. **Cite Policy:** When requesting changes, briefly reference *why* (e.g., "Required by Policy 6.4001 for student privacy").
 
     CRITICAL COMPLIANCE CHECKS:
     1. BENEFIT TO DISTRICT: Must explicitly state "projected value of the study to Blount County."
@@ -354,8 +345,8 @@ else:
     ### 🔍 Compliance Checklist
     (List the 5 critical checks above and their status)
     
-    ### 📝 Detailed Findings & Action Items
-    (Provide specific feedback on *missing variables* or *policy gaps* without offering rewrite text.)
+    ### 📝 Findings & Required Actions
+    (Provide specific feedback with Policy/Legal rationale. Group related items.)
     """
     
     student_inputs = external_inputs
@@ -374,7 +365,7 @@ if st.button("Run Compliance Check"):
         status.info("🔌 Connecting to AI Services...")
         genai.configure(api_key=api_key)
         
-        # 2. CONFIGURATION (FIXED: Temp 0.3 prevents repetition loops)
+        # 2. CONFIGURATION
         generation_config = {
             "temperature": 0.3, 
             "top_p": 0.95, 
@@ -426,7 +417,6 @@ if st.button("Run Compliance Check"):
                     connected_model = model_name
                     break 
                 except Exception as e:
-                    # If quota exceeded or 404, try the next one
                     continue
 
         # 5. DISPLAY RESULTS
@@ -443,16 +433,17 @@ if st.button("Run Compliance Check"):
             if user_mode == "AP Research Student":
                 st.success("""
                 **✅ If all of your artifacts have passed:**
-                1. Confirm your status to your teacher for district submission via email: **donny.anderson@blountk12.org**
-                2. Make sure that all files that were AI screened are shared with Mr. Anderson.
+                1. Submit your screened files to your **AP Research Teacher / School IRB** for final approval.
+                2. Ensure all file naming conventions are correct before submission.
                 """)
                 st.error("""
                 **❌ If your Status is REVISION NEEDED:**
-                * Review the "Action Items" above.
+                * Review the "Action Plan" above.
                 * Edit your documents to address the missing policy requirements.
                 * **Re-run this check** until you get a PASS status.
                 """)
             else: 
+                # External Researchers usually still need District Approval
                 st.success("""
                 **✅ If all of your artifacts have passed:**
                 Please email your screened files to Blount County Schools (**research@blountk12.org**) for final approval. 
