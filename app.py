@@ -30,13 +30,13 @@ with st.sidebar:
     st.warning("🔒 **Privacy:** Do not upload files containing real participant names or PII.")
 
     # 3. APP UPDATES
-    with st.expander("🆕 App Updates (v2.4)"):
+    with st.expander("🆕 App Updates (v2.5)"):
         st.markdown("""
         **Latest Improvements:**
-        * 🎨 **Unified Feedback Format:** External researchers now receive the same detailed, educational feedback structure as students.
-        * 🧠 **Educational Rationale:** All action steps now explain *why* a revision is needed (citing Policy/FERPA).
-        * 🗺️ **Workflow Update:** Phase 3 reflects School-Level IRB approval.
-        * 🚀 **Capacity Boost:** 25-Key pool active.
+        * 🧑‍🤝‍🧑 **Adult Consent Support:** The tool now intelligently distinguishes between **Minor Subjects** (requiring Parent Forms) and **Adult Subjects** (requiring Adult Consent).
+        * 🎨 **Unified Feedback:** Consistent format for all users.
+        * 🧠 **Educational Rationale:** Explains "Why" for every error.
+        * 🚀 **Capacity:** 25-Key pool active.
         """)
 
     # 4. FILE NAMING GUIDE
@@ -226,7 +226,7 @@ if user_mode == "AP Research Student":
     document_types = [
         "Research Proposal",
         "Survey / Interview Questions",
-        "Parent Permission Form",
+        "Participant Consent Forms (Parent or Adult)", # RENAMED
         "Principal/District Permission Forms"
     ]
     selected_docs = st.multiselect("Select documents to screen:", document_types, default=["Research Proposal"])
@@ -250,10 +250,11 @@ if user_mode == "AP Research Student":
             file = st.file_uploader("Upload Survey PDF", type="pdf", key="ap_survey_file")
             if file: student_inputs["SURVEY"] = extract_text(file)
 
-    if "Parent Permission Form" in selected_docs:
-        st.markdown("### 3. Parent Permission Form")
-        file = st.file_uploader("Upload Parent Form (PDF)", type="pdf", key="ap_parent")
-        if file: student_inputs["PARENT_FORM"] = extract_text(file)
+    if "Participant Consent Forms (Parent or Adult)" in selected_docs:
+        st.markdown("### 3. Participant Consent Forms")
+        st.caption("Upload Parent Permission (for Minors) OR Adult Consent (for 18+).")
+        file = st.file_uploader("Upload Consent PDF", type="pdf", key="ap_consent")
+        if file: student_inputs["CONSENT_FORMS"] = extract_text(file)
 
     if "Principal/District Permission Forms" in selected_docs:
         st.markdown("### 4. Principal/District Permission Forms")
@@ -267,13 +268,21 @@ if user_mode == "AP Research Student":
     INSTRUCTION: Review the student proposal for compliance with Policy 6.4001.
     
     **REVIEW STRATEGY:**
-    1. **COMPREHENSIVE SCAN:** Identify all compliance gaps.
-    2. **GROUPING:** Combine related issues into single Action Steps (e.g., group all "Consent Form" missing items together).
-    3. **EDUCATIONAL RATIONALE:** For each Action Step, you must explain **WHY** the revision is needed by citing Policy 6.4001, FERPA, or the District Research Rubric.
+    1. **SUBJECT TRIAGE:** Determine if the participants are **MINORS** (Students <18) or **ADULTS** (Teachers/Community 18+).
+       - IF MINORS: Check for "Parent Permission Form".
+       - IF ADULTS: Check for "Adult Informed Consent Form" (Do NOT ask for Parent Permission).
+    2. **COMPREHENSIVE SCAN:** Identify all compliance gaps.
+    3. **EDUCATIONAL RATIONALE:** For each Action Step, explain **WHY** citing Policy 6.4001, FERPA, or Ethics.
     
     **STRICT CONSTRAINTS:** 1. Do NOT rewrite the student's text.
-    2. Do NOT provide examples of 'correct' verbiage.
-    3. **SCOPE LIMITATION:** Do NOT critique the student's grammar, sentence structure, or research quality/methodology. Only flag issues that strictly violate Policy 6.4001, Federal Regulations, or Ethical Standards.
+    2. **SCOPE LIMITATION:** Do NOT critique grammar or research quality. Focus ONLY on regulatory compliance.
+    
+    **CRITERIA (Policy 6.4001 & Federal Rules):**
+    1. PROHIBITED: Political affiliation, voting history, religious practices, firearm ownership. (Strict Fail).
+    2. CONSENT (Select One based on Subject Age):
+       - **Minors:** Requires Active Parent Permission + Student Assent.
+       - **Adults:** Requires Adult Informed Consent (Voluntary participation statement).
+    3. DATA: Must have destruction date and method.
     
     **OUTPUT FORMAT:**
     - STATUS: [✅ PASS] or [❌ REVISION NEEDED]
@@ -345,7 +354,6 @@ else:
       * **[Action Step 1]:** [Clear instruction to fix missing items]
         * *Rationale:* "[Brief explanation citing Policy 6.4001/Federal Law]"
       * **[Action Step 2]:** ...
-      * ...
     """
     
     student_inputs = external_inputs
